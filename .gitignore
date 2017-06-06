@@ -1,0 +1,6 @@
+*.dep
+*.zo
+*.out
+*.so
+main
+output/
