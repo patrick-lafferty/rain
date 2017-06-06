@@ -14,6 +14,19 @@
         ['macosx "λ "]
     ))
 
+(require ffi/unsafe)
+(define libc (ffi-lib #f))
+(define signal (get-ffi-obj "signal" libc (_fun _int (_fun _int -> _void) -> _void)))
+
+(define (sigint i)
+    (display "sigint"))
+
+(define (sigtstp i)
+    (display "sigtstp"))
+
+(signal 2 sigint)
+(signal 20 sigtstp)
+
 (require "ffi_readline.rkt")
 
 (define safe-read-line
