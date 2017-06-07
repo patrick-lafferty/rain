@@ -75,8 +75,9 @@
 (define launcher%
     (class object%
         (super-new)
-        (init current-shell)
-        (define shell current-shell)
+        ;(init current-shell)
+        (define shell #f);current-shell)
+        (define/public (set-shell s) (set! shell s))
         (define stoppedJobs '())
 
         (define/public (fg)
@@ -120,4 +121,7 @@
                 (launch-process job)
                 (put-job-in-foreground job pid)))))
 
-(provide launcher% job%)
+
+(define launcher (new launcher%))
+
+(provide launcher job%)

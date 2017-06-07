@@ -106,7 +106,7 @@
                 (when (> (send commandline get-length) 0)
                     (send history add (send commandline get-line))
                     (let ([line (send commandline get-line)])  
-                        (let ([code (read (open-input-string line))])
+                        (let ([code (read (open-input-string line))])  ;/recursive  (open-input-string line) #f (current-readtable) #f)])
                             (cond
                                 [(list? code) (exec code)]
                                 [(symbol? code) (handle-symbol code)]

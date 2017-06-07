@@ -7,8 +7,19 @@
 (define (test-2) (displayln "line 2"))
 (define (test-3) (displayln "line 3"))
     
-(define (is-in-namespace symbol)
+(define (is-in-namespace? symbol)
     (if (member symbol (namespace-mapped-symbols (current-namespace)))
-        (printf "~a is in the namespace ~n" symbol)
-        (printf "~a is not in the namespace ~n" symbol)))
+        #t
+        #f))
+        ;(printf "~a is in the namespace ~n" symbol)
+        ;(printf "~a is not in the namespace ~n" symbol)))
+
+(require "jobs.rkt")
+
+(define (launch path . arguments) 
+    (define job (new job% [args (flatten (list path arguments #f))]))    
+
+    (send launcher launch-job job))
+
+(provide is-in-namespace?)
         

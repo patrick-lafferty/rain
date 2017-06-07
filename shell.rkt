@@ -55,27 +55,69 @@
 (send master-termios save-tmodes 0)
 
 (define shell (new shell%))
-(define launcher (new launcher% [current-shell shell]))
+;(define launcher (new launcher% [current-shell shell]))
+(send launcher set-shell shell)
 
-(define (start-job id)
-    (define job (new job% [args (list id #f)]))    
-
-    (send launcher launch-job job))
+;(define (start-job id)
+;    (define job (new job% [args (list id #f)]))    
+;
+;    (send launcher launch-job job))
 
 (define (unknown e code) 
     (let ([id (exn:fail:contract:variable-id e)])
         (when (eq? (first code) id)
-            (if (can-execute id)
-                (start-job (format "~a" id))
-                (printf "~a is unknown~n" id)))))
+            ;(if (can-execute id)
+             ;   (start-job (format "~a" id))
+                (printf "~a is unknown~n" id))))
 
+;(define (launch path)
+;    (start-job path))
 
-(define (exec code) 
+(define (print-tabs t)
+    (when (> t 0)
+        (display " ")
+        (print-tabs (sub1 t))))
+
+(require "builtins.rkt")
+
+(define (exec2 code) 
+    (define (rec c tab)
+        (match c
+            [(cons a b)
+                (print-tabs tab)
+                (printf "(~a~n" (is-in-namespace? a))
+                (rec b (add1 tab))]
+            [_ (print-tabs tab) (printf "~a)~n" (is-in-namespace? c))]))
+    (rec code 0))
+
+(define (transform code)
+    (define (rec c acc)
+        (match c
+            ['() acc]
+            [(cons first rest)
+                (if (list? first)
+                    (begin
+                        (let ([result (reverse (rec first '()))])
+                            (rec rest (cons result acc))) 
+                    )
+                    (begin     
+                        (cond
+                         [(is-in-namespace? first)
+                            (rec rest (cons first acc))]
+                         [(can-execute first)
+                            (let ([stringified (format "~a" first)])  
+                                (rec rest (append acc `(,stringified launch))))]
+                         [else (rec rest (cons first acc))])))]
+            [_ (cons c acc)]))
+
+    (rec code '()))
+
+(define (exec code)
     (with-handlers 
         (
             [exn:fail:contract:variable? (lambda (e) (unknown e code))]
-            [exn:fail? (lambda (e) (void))])
-        (let ([result (eval code shell-namespace)])
+            [exn:fail? (lambda (e) (displayln e))])
+        (let ([result (eval (reverse (transform code)) shell-namespace)])
             (cond
                 [(void? result) (void)]
                 [else (displayln result)]))))
