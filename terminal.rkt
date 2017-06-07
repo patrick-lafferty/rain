@@ -47,6 +47,7 @@
 (define tcsetpgrp (get-ffi-obj "tcsetpgrp" libc (_fun _int _int -> _int)))
 
 (define (set-foreground-process-group terminal-descriptor group)
+    ;(printf "set-fpg ~a ~a ~n" terminal-descriptor group)
     (tcsetpgrp terminal-descriptor group))
 
 (provide set-foreground-process-group)

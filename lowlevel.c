@@ -7,6 +7,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+int main()
+{
+    printf("sig_ign: %p", SIG_IGN);
+}
+
 void set_stdin() {
     /*int fd = open("/dev/null", O_WRONLY);
     dup2(fd, 0);

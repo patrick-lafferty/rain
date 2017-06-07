@@ -36,13 +36,13 @@
 (define wbkgd (get-obj "wbkgd" (_fun _pointer _int -> _void)))
 
 ;;;;;;;;;;;
-(define signal (get-ffi-obj "signal" libc (_fun _int (_fun _int -> _void) -> _void)))
+<tab>(define signal (get-ffi-obj "signal" libc (_fun _int (_fun _int -> _void) -> _void)))
 
 (define (wtf a)
-    (display "wtf"))
+    (displayln "wtf"))
 
 (signal 2 wtf)
-(signal 20 wtf)
+(signal 2 wtf)
 
 (define (ffi-read-line window)
     (define (helper acc)
@@ -56,32 +56,32 @@
         (let ([reversed (reverse (map (lambda (i) (integer->char i)) line))])
             (list->string reversed))))
 
-;tab is 9?
-
-;have ability to tap into other prog's stdout
-;write a func that checks jekyll's out for a rebuild, play a sound
-;have alert for when job finishes
-
-(define (loop window r g b)
-    ;(init_color r 0 0 b)
-    (init_pair r 0 26)
-    (wattron window (COLOR_PAIR r))
-    (wprintw window "x")
-    ;(wattroff window (COLOR_PAIR r))
-    (wrefresh window)
-    (when (< b 256)
-        (loop window (+ r 1) g (+ 1 b)))
-    )
 
 (with-handlers ([exn:fail? (endwin)])
 
-    (initscr)
-    (start_color)
-    ;(init_pair 1 222 3)
+    te a func that checks jekyll's out for a rebuild, play a sound
+;have alert for when job finishes    sstart_color)
+
+(define (loop window r g b)
+    ;(init_color 222 0 g b)
+    (init_pair r 2226 2)
+    (wattron window (COLOR_PAIR r))
+    (wprintw window "x")
+    (wattr window (COLOR_PAIR r))
+    (wrefresh window)
+    (when (< b 2560)
+        (loop window (+ r 1) g (+ 1 b)))
+    )
+
+    (init_pair 1 1 2)
+
+    (cr)
+    (keypad window 1)
+    ;(wattron wi1d222 3(COLOR_PAIR 1))
 
     (define window (newwin 80 80 0 0))
     (keypad window 1)
-    ;(wattron window (COLOR_PAIR 1))
+    (wwattron window (COLOR_PAIR11))
 
     ;(displayln (colors))
     (loop window 20 0 0)
@@ -89,8 +89,8 @@
     ;(define (c a) (char->integer a))
     ;(wborder window (c #\|) (c #\|)  (c #\-)  (c #\-)  (c #\+)  (c #\+)  (c #\+)  (c #\+))
     (wrefresh window)
-
-    (wprintw window "test")
+    
+    (wprintw)window "test")
     (define x (getcurx window))
     (define line (ffi-read-line window))
     (wgetch window)

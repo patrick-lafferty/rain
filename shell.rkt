@@ -13,6 +13,7 @@
 (define libc (ffi-lib #f))
 (define isatty (get-ffi-obj "isatty" libc (_fun _int -> _int)))
 (define getpid (get-ffi-obj "getpid" libc (_fun -> _int)))
+(define setpgid (get-ffi-obj "setpgid" libc (_fun _int _int -> _int)))
 
 (define shell% 
     (class object%
@@ -24,10 +25,11 @@
         (define shell-is-interactive (isatty terminal))
 
         (define pgid (getpid))
+
+        (setpgid pgid pgid)
         (send termios save-tmodes terminal)
-        (become-foreground-process)
-        
-        (send termios save-tmodes terminal)
+        (become-foreground-process)        
+        ;(send termios save-tmodes terminal)
 
         (define/public (get-terminal)
             terminal)
@@ -36,8 +38,8 @@
             pgid)
         
         (define/public (become-foreground-process)
-            (set-foreground-process-group terminal pgid)
-            (send termios restore-tmodes terminal))))
+            (set-foreground-process-group terminal pgid))))
+            ;(send termios restore-tmodes terminal))))
 
 (define (combine-namespaces)
     (dynamic-rerequire "builtins.rkt")
@@ -48,12 +50,34 @@
 
 (define shell-namespace (combine-namespaces))
 
+(require "jobs.rkt")
+
+(define signal (get-ffi-obj "signal" libc (_fun _int (_fun _int -> _void) -> _void)))
+(define (sigttou a) (void))
+
+;(signal 21 sigttou)
+(signal 22 sigttou)
+(define (a b) (printf "caught ~a~n" b))
+(signal 18 a)
+
+(define shell (new shell%))
+(define launcher (new launcher% [current-shell shell]))
+
+(define (start-job)
+    (define job (new job%))    
+
+    (send launcher launch-job job))
+
 (define (unknown e code) 
+    (displayln (getpid))
     (let ([id (exn:fail:contract:variable-id e)])
         (when (eq? (first code) id)
             (printf "~a is unknown ~n" id)
             (when (can-execute id)
+                (start-job)
                 (displayln "it can be executed")))))
+
+(displayln (getpid))
 
 (define (exec code) 
     (with-handlers 

@@ -16,16 +16,16 @@
 
 (require ffi/unsafe)
 (define libc (ffi-lib #f))
-(define signal (get-ffi-obj "signal" libc (_fun _int (_fun _int -> _void) -> _void)))
+(define signal (get-ffi-obj "signal" libc (_fun _int _int -> _void)));(_fun _int -> _void) -> _void)))
 
 (define (sigint i)
-    (display "sigint"))
+    (displayln "sigint"))
 
 (define (sigtstp i)
-    (display "sigtstp"))
+    (displayln "sigtstp"))
 
-(signal 2 sigint)
-(signal 20 sigtstp)
+;(signal 21 sigint)
+(signal 22 1);sigtstp)
 
 (require "ffi_readline.rkt")
 
@@ -42,7 +42,7 @@
         (cond
             [(list? code) (exec code)]
             [(symbol? code) (handle-symbol code)]
-            [ else (displayln "unknown")])
+            [ else (printf "unknown: ~a~n" code)])
         
         (repl)
     ))
