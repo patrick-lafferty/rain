@@ -32,12 +32,11 @@
     (class object%
         (init args)
         (super-new)
-        (define termios (new termios%))
+        (define termios (new termios% [is-shell #f]))
 
         (define can-continue? #f)
         (define pid 0)
         (define pgid 0)
-        ;(define argv '("vim" #f))
         (define argv args)
 
         (define/public (become-foreground-process terminal)

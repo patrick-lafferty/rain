@@ -6,10 +6,18 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <termios.h>
 
 int main()
 {
-    printf("sig_ign: %d", WUNTRACED);
+    struct termios old;
+    tcgetattr(0, &old);
+    //printf("x: %lu\n", sizeof(int));
+    printf("x: %u", old.c_lflag);
+    /*printf("echo: %d", ECHO);
+    printf("echoe: %d", ECHOE);
+    printf("icanon: %d", ICANON);*/
+    printf("~all: %u", 35387 & ~(ECHO | ECHOE | ICANON));
 }
 
 void set_stdin() {

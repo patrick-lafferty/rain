@@ -19,7 +19,7 @@
     (class object%
         
         (super-new)
-        (define termios (new termios%))
+        (define termios (new termios% [is-shell #t]))
 
         (define terminal 0)
         (define shell-is-interactive (isatty terminal))
@@ -29,7 +29,6 @@
         (setpgid pgid pgid)
         (send termios save-tmodes terminal)
         (become-foreground-process)        
-        ;(send termios save-tmodes terminal)
 
         (define/public (get-terminal)
             terminal)
@@ -51,6 +50,9 @@
 (define shell-namespace (combine-namespaces))
 
 (require "jobs.rkt")
+
+(define master-termios (new termios% [is-shell #f]))
+(send master-termios save-tmodes 0)
 
 (define shell (new shell%))
 (define launcher (new launcher% [current-shell shell]))
@@ -81,12 +83,16 @@
 (define (handle-symbol s)
     (match s
         ['reload (reload-shell)]
-        ['exit (exit)]
+        ['exit (quit)]
         ['fg (send launcher fg)]
         [ _ (printf "~a is undefined ~n" s)]
     ))
 
 (define (reload-shell)
     (set! shell-namespace (combine-namespaces)))
+
+(define (quit)
+    (send master-termios quit 0)
+    (exit))
 
 (provide exec reload-shell handle-symbol shell%)
