@@ -3,27 +3,25 @@
 (require ffi/unsafe)
 (require ffi/unsafe/define)
 
-(define libc (ffi-lib #f))
-
 (define-ffi-definer define-libc (ffi-lib #f))
 (define-ffi-definer define-libsignals (ffi-lib "libsignals" '(#f)))
 
 (define-libsignals childStopped (_fun _int -> _int))
 (define-libsignals childExited (_fun _int -> _int))
 
-(define fork (get-ffi-obj "fork" libc (_fun -> _int)))
-(define execvp (get-ffi-obj "execvp" libc (_fun _path (_list i _string) -> _int)))
-(define wait (get-ffi-obj "wait" libc (_fun _pointer -> _void)))
+(define-libc fork (_fun -> _int))
+(define-libc execvp (_fun _path (_list i _string) -> _int))
+(define-libc wait (_fun _pointer -> _void))
 (define-libc waitpid (_fun _int (status : (_ptr o _int)) _int 
     -> (r : _int) 
     -> (values status r)))
 (define-libc kill (_fun _int _int -> _int))
 
-(define getpid (get-ffi-obj "getpid" libc (_fun -> _int)))
-(define setpgid (get-ffi-obj "setpgid" libc (_fun _int _int -> _int)))
+(define-libc getpid (_fun -> _int))
+(define-libc setpgid (_fun _int _int -> _int))
 
-(define c-exit (get-ffi-obj "exit" libc (_fun _int -> _void)))
-(define signal (get-ffi-obj "signal" libc (_fun _int (_fun _int -> _void) -> _void)))
+(define-libc exit (_fun _int -> _void))
+(define-libc signal (_fun _int (_fun _int -> _void) -> _void))
 
 (require "terminal.rkt")
 (require "termios.rkt")
@@ -78,9 +76,12 @@
         (define stoppedJobs '())
 
         (define/public (fg)
-            (define job (first stoppedJobs))
-            (put-job-in-foreground job (send job get-pid))
-            )
+            (match stoppedJobs
+                [(cons head tail) 
+                    (set! stoppedJobs tail)
+                    (put-job-in-foreground head (send head get-pid))]
+                [_ (displayln "no jobs")]))
+            
 
         (define/public (launch-process job)
             (define pid (getpid))
@@ -90,7 +91,7 @@
             (send job become-foreground-process (send shell get-terminal))
             (execvp "vim" '("vim" #f))
             (send job stop (send shell get-terminal))
-            (c-exit 1))
+            (exit 1))
 
         (define/public (put-job-in-foreground job pid)
             (set-job-pgid job pid)
@@ -102,8 +103,8 @@
             (define-values (status result) (waitpid WAIT_ANY WUNTRACED))
             
             (cond
-                [(= 1 (childStopped status)) (set! stoppedJobs (list job))]
-                [(= 1 (childExited status)) (void)])
+                [(= 1 (childStopped status)) (set! stoppedJobs (cons job stoppedJobs))]
+                [(= 1 (childExited status)) void])
             (send job stop terminal)
             (send shell become-foreground-process)
             
