@@ -16,7 +16,8 @@
 
 (require ffi/unsafe)
 (define libc (ffi-lib #f))
-(define signal (get-ffi-obj "signal" libc (_fun _int _int -> _void)));(_fun _int -> _void) -> _void)))
+(define signal-i (get-ffi-obj "signal" libc (_fun _int _int -> _void)));(_fun _int -> _void) -> _void)))
+(define signal (get-ffi-obj "signal" libc (_fun _int (_fun _int -> _void) -> _void)))
 
 (define (sigint i)
     (displayln "sigint"))
@@ -24,8 +25,8 @@
 (define (sigtstp i)
     (displayln "sigtstp"))
 
-;(signal 21 sigint)
-(signal 22 1);sigtstp)
+(signal 20 sigtstp)
+(signal-i 22 1);sigtstp)
 
 (require "ffi_readline.rkt")
 

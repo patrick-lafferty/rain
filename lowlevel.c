@@ -9,7 +9,7 @@
 
 int main()
 {
-    printf("sig_ign: %p", SIG_IGN);
+    printf("sig_ign: %d", WUNTRACED);
 }
 
 void set_stdin() {
