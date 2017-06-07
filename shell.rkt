@@ -55,18 +55,17 @@
 (define shell (new shell%))
 (define launcher (new launcher% [current-shell shell]))
 
-(define (start-job)
-    (define job (new job%))    
+(define (start-job id)
+    (define job (new job% [args (list id #f)]))    
 
     (send launcher launch-job job))
 
 (define (unknown e code) 
     (let ([id (exn:fail:contract:variable-id e)])
         (when (eq? (first code) id)
-            (printf "~a is unknown ~n" id)
-            (when (can-execute id)
-                (start-job)
-                (displayln "it can be executed")))))
+            (if (can-execute id)
+                (start-job (format "~a" id))
+                (printf "~a is unknown~n" id)))))
 
 
 (define (exec code) 

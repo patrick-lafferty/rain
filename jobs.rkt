@@ -30,12 +30,15 @@
 
 (define job%
     (class object%
+        (init args)
         (super-new)
         (define termios (new termios%))
 
         (define can-continue? #f)
         (define pid 0)
         (define pgid 0)
+        ;(define argv '("vim" #f))
+        (define argv args)
 
         (define/public (become-foreground-process terminal)
             (when can-continue?
@@ -58,6 +61,8 @@
 
         (define/public (set-pid id)
             (set! pid id))
+
+        (define/public (get-argv) argv)
     ))
 
 (define (set-job-pgid job pgid)
@@ -81,7 +86,6 @@
                     (set! stoppedJobs tail)
                     (put-job-in-foreground head (send head get-pid))]
                 [_ (displayln "no jobs")]))
-            
 
         (define/public (launch-process job)
             (define pid (getpid))
@@ -89,7 +93,8 @@
             (set-job-pgid job pid)
 
             (send job become-foreground-process (send shell get-terminal))
-            (execvp "vim" '("vim" #f))
+            (let ([argv (send job get-argv)])
+                (execvp (first argv) argv))
             (send job stop (send shell get-terminal))
             (exit 1))
 
