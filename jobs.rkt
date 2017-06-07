@@ -10,84 +10,84 @@
 
 (define getpgrp (get-ffi-obj "getpgrp" libc (_fun -> _int)))
 (define tcgetpgrp (get-ffi-obj "tcgetpgrp" libc (_fun _int -> _int)))
-(define tcsetpgrp (get-ffi-obj "tcsetpgrp" libc (_fun _int _int -> _int)))
 
-(define-cstruct _termios 
-    (
-        [c_iflag _uint64]
-        [c_oflag _uint64]
-        [c_cflag _uint64]
-        [c_lflag _uint64]
-        [c_cc (_list i _byte)]
-        [c_ispeed _int64]
-        [c_ospeed _int64]
-    ))
 
-(define tcgetattr (get-ffi-obj "tcgetattr" libc (_fun _int _termios-pointer -> _int)))
-(define tcsetattr (get-ffi-obj "tcsetattr" libc (_fun _int _int _termios-pointer -> _int)))
 
-(define isatty (get-ffi-obj "isatty" libc (_fun _int -> _int)))
 (define getpid (get-ffi-obj "getpid" libc (_fun -> _int)))
 (define setpgid (get-ffi-obj "setpgid" libc (_fun _int _int -> _int)))
 
-(define fdopen (get-ffi-obj "fdopen" libc (_fun _int _path -> _int)))
-
 (define c-exit (get-ffi-obj "exit" libc (_fun _int -> _void)))
-
-(define shell-terminal 0)
-(define shell-is-interactive (isatty shell-terminal))
-
-(define shell-pgid (getpid))
-(tcsetpgrp shell-terminal shell-pgid)
-
-(define shell-tmodes (make-termios 0 0 0 0 (list 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0) 0 0))
-
-(tcgetattr shell-terminal shell-tmodes)
-
 (define signal (get-ffi-obj "signal" libc (_fun _int (_fun _int -> _void) -> _void)))
 
 (define (sigttou a) (void))
 
 (signal 22 sigttou)
 
-(define (launch-process)
+(require "terminal.rkt")
+(require "termios.rkt")
+
+(define job%
+    (class object%
+        (super-new)
+        (define termios (new termios%))
+
+        (define can-continue? #f)
+        (define pgid 0)
+        (define lock (make-semaphore 1))
+
+        (define/public (get-semaphore) lock)
+
+        (define/public (become-foreground-process terminal)
+            (when can-continue?
+                (send termios restore-tmodes terminal))
+
+            (set-foreground-process-group terminal pgid))
+
+        (define/public (stop terminal)
+            (send termios save-tmodes terminal)
+            (set! can-continue? #t))
+
+        (define/public (get-pgid) pgid)
+        (define/public (set-pgid id)
+            (set! pgid id))
+    ))
+(require "shell.rkt")
+(define shell (new shell%))
+
+(define (set-job-pgid job pgid)
+    (call-with-semaphore (send job get-semaphore)
+        (lambda ()
+            (when (eq? 0 (send job get-pgid))
+                (send job set-pgid pgid)    
+                (setpgid pgid pgid)))))
+
+(define (launch-process job)
     (define pid (getpid))
-    (define pgid pid)
-    
-    (setpgid pid pgid)
-    (tcsetpgrp shell-terminal pgid)
+
+    (set-job-pgid job pid)
+
+    (send job become-foreground-process (send shell get-terminal))
     (execvp "python" '("python" #f))
     (c-exit 1))
 
-(define (put-job-in-foreground pgid)
-    (setpgid pgid pgid)
-    (tcsetpgrp shell-terminal pgid)
-    (wait #f)
-    ;(displayln "im back")
-    (tcsetpgrp shell-terminal shell-pgid)
-    ;(tcgetattr shell-terminal job-modes)
-    (tcsetattr shell-terminal 1 shell-tmodes)
-)
+(define (put-job-in-foreground job pid)
+    (set-job-pgid job pid)
 
-(define (launch-job)
+    (define terminal (send shell get-terminal))
+    (send job become-foreground-process terminal)
+    (wait #f)
+    (send job stop terminal)
+    (send shell become-foreground-process)
+    
+    (void))
+
+
+(define (launch-job job)
     (define pid (fork))
      (if (eq? pid 0)
-       (launch-process)
-       (put-job-in-foreground pid)))
-    
+       (launch-process job)
+       (put-job-in-foreground job pid)))
 
-(launch-job)
-;(displayln "here")
+(define job (new job%))    
 
-;this works
-;(define pid (fork))
-;(if (eq? pid 0)
-;    ((execvp "python" '("python" #f))
- ;       (exit))
-;    (wait #f))
-   
-
-;(define o (process/ports (current-output-port) (current-input-port) (current-output-port) "python"))
-;(define proc (list-ref o 4))
-;(proc 'wait)
-
+(launch-job job)

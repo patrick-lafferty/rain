@@ -5,6 +5,39 @@
 
 (require racket/rerequire)
 (require "filesystem.rkt")
+(require "terminal.rkt")
+(require "termios.rkt")
+
+;libc imports
+(require ffi/unsafe)
+(define libc (ffi-lib #f))
+(define isatty (get-ffi-obj "isatty" libc (_fun _int -> _int)))
+(define getpid (get-ffi-obj "getpid" libc (_fun -> _int)))
+
+(define shell% 
+    (class object%
+        
+        (super-new)
+        (define termios (new termios%))
+
+        (define terminal 0)
+        (define shell-is-interactive (isatty terminal))
+
+        (define pgid (getpid))
+        (send termios save-tmodes terminal)
+        (become-foreground-process)
+        
+        (send termios save-tmodes terminal)
+
+        (define/public (get-terminal)
+            terminal)
+
+        (define/public (get-pgid)
+            pgid)
+        
+        (define/public (become-foreground-process)
+            (set-foreground-process-group terminal pgid)
+            (send termios restore-tmodes terminal))))
 
 (define (combine-namespaces)
     (dynamic-rerequire "builtins.rkt")
@@ -42,4 +75,4 @@
 (define (reload-shell)
     (set! shell-namespace (combine-namespaces)))
 
-(provide exec reload-shell handle-symbol)
+(provide exec reload-shell handle-symbol shell%)
