@@ -18,7 +18,7 @@
 (require ffi/unsafe/define)
 (define-ffi-definer define-libc (ffi-lib #f))
 
-(define-libc signal (_fun _int _int -> _void));(_fun _int -> _void) -> _void)))
+(define-libc signal (_fun _int _int -> _void))
 
 (signal 22 1)
 
@@ -41,8 +41,8 @@
 ;tab: 9
 
 (define (refresh-line)
-    (printf "\x1b[2K")
-    (printf "\x1b[1G")
+    (printf "\x1b[2K") ;ANSI escape code CSI n K - Erase in Line
+    (printf "\x1b[1G") ;ANSI escape code CSI n G - Cursor Horizontal Absolute
     (display prompt-character)
     (display (send commandline get-line))
     (printf "\x1b[~aG" (+ 3 (send commandline get-position)))
@@ -67,12 +67,25 @@
                         [67 'right]
                         [68 'left]))])))
 
+(define up-counter 0)
+
+(define (show-history i)
+    (let ([past-line (send history get i)])
+        (send commandline set-from-history past-line) 
+        (refresh-line)))
+
 (define (handle-escape-sequence)
     (match (parse-escape-sequence)
         ['f1 (display "f1")]
         ['del (send commandline delete) (refresh-line)]
-        ['up (display "up")]
-        ['down (display "down")]
+        ['up 
+            (show-history up-counter)
+            (when (< up-counter (send history get-length))
+                (set! up-counter (+ up-counter 1)))]
+        ['down 
+            (when (> up-counter -1)
+                (set! up-counter (- up-counter 1)))
+            (show-history up-counter)]
         ['right (send commandline move-right)]
         ['left (send commandline move-left)]
         ['unsupported (display "unsupported")]))
@@ -80,23 +93,30 @@
 (require "commandline.rkt")
 (define commandline (new commandline%))
 
+(require "history.rkt")
+(define history (new history%))
+
 (define (input-loop)
     (let ([c (getchar)])
         (match c
             [9 (input-loop)]
             [10 (displayln "")   
-                (let ([code (read (open-input-string (send commandline get-line)))])
-                    (cond
-                        [(list? code) (exec code)]
-                        [(symbol? code) (handle-symbol code)]
-                        [ else (printf "unknown: ~a~n" code)]))
-                (send commandline clear)]
+                (set! up-counter 0)
+
+                (when (> (send commandline get-length) 0)
+                    (send history add (send commandline get-line))
+                    (let ([line (send commandline get-line)])  
+                        (let ([code (read (open-input-string line))])
+                            (cond
+                                [(list? code) (exec code)]
+                                [(symbol? code) (handle-symbol code)]
+                                [ else (printf "unknown: ~a~n" code)]))
+                        (send commandline clear)))]
             [27 (handle-escape-sequence) (input-loop)]
             [127 (send commandline backspace) (refresh-line) (input-loop)]
             [_ 
                 (send commandline add-char (integer->char c))
-                (display (integer->char c))
-                (flush-output)
+                (refresh-line)
                 (input-loop)])))
 
 

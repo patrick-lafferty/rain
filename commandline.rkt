@@ -10,6 +10,16 @@
                     (> i -1)) 
                 (helper 0 '() lst))))
 
+(define (insert-at lst i element)
+    (define (helper c before after)
+            (if (= c i)
+                (append (reverse before) (list element) after)
+                (helper (+ c 1) (cons (first after) before) (rest after))))
+        (let ([len (length lst)])
+                (when (and (< i len)
+                        (> i -1)) 
+                    (helper 0 '() lst))))
+
 (define commandline%
     (class object%
         (super-new)
@@ -23,12 +33,27 @@
             (set! line '())
             (set! length 0))
 
+        (define/public (set-from-history past-line)
+            (set! line (reverse (string->list past-line)))
+            (set! length (string-length past-line))
+            (set! position length))
+
         (define/public (add-char c)
-            (set! line (cons c line))
-            (set! position (+ 1 position))
-            (set! length (+ 1 length)))
+            (if (< position length)
+                ;insert somewhere in the middle of the line
+                (begin
+                    (set! line (reverse (insert-at (reverse line) position c)))
+                    (set! position (+ 1 position))
+                    (set! length (+ 1 length))
+                )
+                ;add to the end of the line
+                (begin 
+                    (set! line (cons c line))
+                    (set! position (+ 1 position))
+                    (set! length (+ 1 length)))))
 
         (define/public (get-position) position)
+        (define/public (get-length) length)
 
         (define (update-cursor)
             (printf "\x1b[~aG" (+ 3 position))
