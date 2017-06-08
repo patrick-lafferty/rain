@@ -55,23 +55,12 @@
 (send master-termios save-tmodes 0)
 
 (define shell (new shell%))
-;(define launcher (new launcher% [current-shell shell]))
 (send launcher set-shell shell)
-
-;(define (start-job id)
-;    (define job (new job% [args (list id #f)]))    
-;
-;    (send launcher launch-job job))
 
 (define (unknown e code) 
     (let ([id (exn:fail:contract:variable-id e)])
         (when (eq? (first code) id)
-            ;(if (can-execute id)
-             ;   (start-job (format "~a" id))
-                (printf "~a is unknown~n" id))))
-
-;(define (launch path)
-;    (start-job path))
+            (printf "~a is unknown~n" id))))
 
 (define (print-tabs t)
     (when (> t 0)
@@ -91,6 +80,7 @@
     (rec code 0))
 
 (define (transform code)
+    (define is-top-level #t)
     (define (rec c acc)
         (match c
             ['() acc]
@@ -98,15 +88,18 @@
                 (if (list? first)
                     (begin
                         (let ([result (reverse (rec first '()))])
-                            (rec rest (cons result acc))) 
-                    )
+                            (rec rest (cons result acc))))
                     (begin     
                         (cond
                          [(is-in-namespace? first)
                             (rec rest (cons first acc))]
                          [(can-execute first)
                             (let ([stringified (format "~a" first)])  
-                                (rec rest (append acc `(,stringified launch))))]
+                                (if is-top-level
+                                    (begin 
+                                        (set! is-top-level #f)
+                                        (rec rest (append acc `(,stringified launch))))
+                                    (rec rest (append acc `(,stringified evaluate)))))]
                          [else (rec rest (cons first acc))])))]
             [_ (cons c acc)]))
 
@@ -117,10 +110,12 @@
         (
             [exn:fail:contract:variable? (lambda (e) (unknown e code))]
             [exn:fail? (lambda (e) (displayln e))])
-        (let ([result (eval (reverse (transform code)) shell-namespace)])
-            (cond
-                [(void? result) (void)]
-                [else (displayln result)]))))
+        (let ([transformed-code (reverse (transform code))])
+            ;(writeln transformed-code)
+            (let ([result (eval transformed-code shell-namespace)])
+                (cond
+                    [(void? result) (void)]
+                    [else (displayln result)])))))
 
 (define (handle-symbol s)
     (match s

@@ -11,15 +11,22 @@
     (if (member symbol (namespace-mapped-symbols (current-namespace)))
         #t
         #f))
-        ;(printf "~a is in the namespace ~n" symbol)
-        ;(printf "~a is not in the namespace ~n" symbol)))
 
 (require "jobs.rkt")
 
+;top-level interactive programs that print directly to stdout
 (define (launch path . arguments) 
-    (define job (new job% [args (flatten (list path arguments #f))]))    
+    ;(printf "launch ~a ~a~n" path arguments)
+    (let* ([flattened-args (flatten (list path arguments #f))]
+           [job (new job% [args flattened-args])])   
+        ;(printf "flattened args: ~a ~n" flattened-args)
+        (send launcher launch-job job #t)))
 
-    (send launcher launch-job job))
+;child jobs that redirect stdout to a separate buffer
+;TODO: need to close fds 
+(define (evaluate path . arguments) 
+    (define job (new job% [args (flatten (list path arguments #f))]))    
+    (format "/dev/fd/~a" (send launcher launch-job job #f)))
 
 (provide is-in-namespace?)
         

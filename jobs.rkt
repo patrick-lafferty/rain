@@ -22,6 +22,12 @@
 
 (define-libc exit (_fun _int -> _void))
 (define-libc signal (_fun _int (_fun _int -> _void) -> _void))
+(define-libc pipe (_fun (fd : (_ptr o (_array/list _int 2))) 
+        -> (r : _int)
+        -> (values fd r)))
+(define-libc dup2 (_fun _int _int -> _void))
+(define-libc read (_fun _int _pointer _int -> _int))
+(define-libc close (_fun _int -> _int))
 
 (require "terminal.rkt")
 (require "termios.rkt")
@@ -87,14 +93,22 @@
                     (put-job-in-foreground head (send head get-pid))]
                 [_ (displayln "no jobs")]))
 
-        (define/public (launch-process job)
+        (define/public (launch-process job fd)
             (define pid (getpid))
 
             (set-job-pgid job pid)
+            (when fd
+                (define stdout-fd (list-ref fd 1))         
+                (define stdin-fd (list-ref fd 0))  
+                (dup2 stdout-fd 1)
+                (close stdin-fd))
 
             (send job become-foreground-process (send shell get-terminal))
             (let ([argv (send job get-argv)])
                 (execvp (first argv) argv))
+
+            (when fd (close (list-ref fd 1)))
+
             (send job stop (send shell get-terminal))
             (exit 1))
 
@@ -115,11 +129,53 @@
             
             (void))
 
-        (define/public (launch-job job)
-            (define pid (fork))
-            (if (eq? pid 0)
-                (launch-process job)
-                (put-job-in-foreground job pid)))))
+        (define/public (launch-job job is-top-level)
+
+            (if is-top-level
+                (begin
+                    (let ([pid (fork)])
+                        (if (eq? pid 0)
+                            (launch-process job #f)
+                            (put-job-in-foreground job pid))))
+                (begin
+                    (let-values ([(fd result) (pipe)])
+                        (let ([stdout-fd (list-ref fd 1)]         
+                              [stdin-fd (list-ref fd 0)]
+                              [pid (fork)])         
+
+                            (if (eq? pid 0)
+                                (launch-process job fd)
+                                (put-job-in-foreground job pid))
+
+                            (close stdout-fd)
+                            stdin-fd)))))
+
+            ;(define complete-buffer-size 2000)
+            ;(define buffer (malloc 'raw complete-buffer-size))
+            ;(define total-count 0)
+            ;(define buffer-size 1000)
+            ;(define (read-loop)
+            ;    (define read-buffer (malloc 'atomic buffer-size))    
+            ;    (let ([count (read stdin-fd read-buffer buffer-size)])
+            ;        (when (> count 0)
+            ;            (when (> (+ total-count count) complete-buffer-size)
+            ;                (define new-buff (malloc 'raw (* complete-buffer-size 2)))
+            ;                (memmove new-buff buffer complete-buffer-size)
+            ;                (free buffer)
+            ;                (set! buffer new-buff)
+             ;               (set! complete-buffer-size (* complete-buffer-size 2))                            
+             ;               )
+             ;           (memmove buffer total-count read-buffer count)
+             ;;           (set! total-count (+ total-count count))
+             ;           (read-loop))))
+;
+            ;(read-loop)            
+
+            ;(define finished-buffer (malloc 'atomic total-count))
+            ;(memmove finished-buffer buffer total-count)
+            ;(define str (cast finished-buffer _pointer _string))
+            ;(printf "wrote: ~a ~a" total-count str))
+        ))
 
 
 (define launcher (new launcher%))
