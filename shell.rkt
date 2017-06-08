@@ -81,36 +81,89 @@
 
 (define (transform code)
     (define is-top-level #t)
+    ;(writeln code)
+    ;instead of this soup,
+    ;map the code,
+    ; 
+    (define (getnum)
+        (define x -1)
+        (lambda () 
+            (set! x (add1 x))
+            x))
+
+    (define (change lst)
+        (define getn (getnum))
+        (define top-level is-top-level)
+        (set! is-top-level #f)
+        (map (lambda (a) 
+            (if (= (getn) 0)
+                (match a
+                    ['define a]
+                    ['if a]
+                    ['set a]
+                    ;[(cons head tail)]
+                    [#t a]
+                    [#f a]
+                    [_ (cond
+                            [(list? a) (change a)]
+                            [(regexp? a) a]
+                            [(char? a) a]
+                            [(is-in-namespace? a shell-namespace) a]
+                            [(is-in-namespace? (quote a) shell-namespace) a]
+                            [(can-execute a) 
+                                (if top-level
+                                    (launch (format "~a" a))
+                                    (evaluate (format "~a" a)))]
+                            [else a]
+                        )] 
+                )
+                (if (list? a)
+                    (change a)
+                    a)
+        )) lst))
+
     (define (rec c acc)
         (match c
             ['() acc]
             [(cons first rest)
                 (if (list? first)
                     (begin
-                        (let ([result (reverse (rec first '()))])
-                            (rec rest (cons result acc))))
-                    (begin     
+                        (if (eqv? (list-ref first 0) 'quote)
+                            (rec rest (cons first acc))
+                            (let ([result (reverse (rec first '()))])
+                                (rec rest (cons result acc)))))
+                    (begin   
                         (cond
-                         [(is-in-namespace? first)
+                        ;[(eqv? first 'quote) (rec rest ]
+                        [(eqv? first 'define) (displayln "display~")]
+                        [(is-in-namespace? first shell-namespace)
+                            ;(parameterize ([current-namespace shell-namespace]) 
+                            ;(printf "f: ~a is: ~a isq: ~a~n" first (is-in-namespace? first) (is-in-namespace? (quote first)))
+                            ;#f)
+                          ;  (or
+                                ;(is-in-namespace? first) 
+                           ;     (is-in-namespace? (quote first))))   
                             (rec rest (cons first acc))]
-                         [(can-execute first)
+                        [(can-execute first)
+                            ;(printf "can-execute: ~a~n" first)
                             (let ([stringified (format "~a" first)])  
                                 (if is-top-level
                                     (begin 
                                         (set! is-top-level #f)
                                         (rec rest (append acc `(,stringified launch))))
                                     (rec rest (append acc `(,stringified evaluate)))))]
-                         [else (rec rest (cons first acc))])))]
+                        [else (rec rest (cons first acc))])))]
             [_ (cons c acc)]))
 
-    (rec code '()))
+    ;(rec code '()))
+    (change code))
 
 (define (exec code)
     (with-handlers 
         (
             [exn:fail:contract:variable? (lambda (e) (unknown e code))]
             [exn:fail? (lambda (e) (displayln e))])
-        (let ([transformed-code (reverse (transform code))])
+        (let ([transformed-code (transform code)]);(reverse (transform code))])
             ;(writeln transformed-code)
             (let ([result (eval transformed-code shell-namespace)])
                 (cond
@@ -122,7 +175,10 @@
         ['reload (reload-shell)]
         ['exit (quit)]
         ['fg (send launcher fg)]
-        [ _ (printf "~a is undefined ~n" s)]
+        [ _ (parameterize ([current-namespace shell-namespace])
+                (if (is-in-namespace? s shell-namespace)
+                    (displayln (eval s))    
+                    (printf "~a is undefined ~n" s)))]
     ))
 
 (define (reload-shell)
@@ -132,4 +188,4 @@
     (send master-termios quit 0)
     (exit))
 
-(provide exec reload-shell handle-symbol shell%)
+(provide exec reload-shell handle-symbol quit shell%)

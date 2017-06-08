@@ -81,8 +81,7 @@
 (define launcher%
     (class object%
         (super-new)
-        ;(init current-shell)
-        (define shell #f);current-shell)
+        (define shell #f)
         (define/public (set-shell s) (set! shell s))
         (define stoppedJobs '())
 
@@ -149,32 +148,6 @@
 
                             (close stdout-fd)
                             stdin-fd)))))
-
-            ;(define complete-buffer-size 2000)
-            ;(define buffer (malloc 'raw complete-buffer-size))
-            ;(define total-count 0)
-            ;(define buffer-size 1000)
-            ;(define (read-loop)
-            ;    (define read-buffer (malloc 'atomic buffer-size))    
-            ;    (let ([count (read stdin-fd read-buffer buffer-size)])
-            ;        (when (> count 0)
-            ;            (when (> (+ total-count count) complete-buffer-size)
-            ;                (define new-buff (malloc 'raw (* complete-buffer-size 2)))
-            ;                (memmove new-buff buffer complete-buffer-size)
-            ;                (free buffer)
-            ;                (set! buffer new-buff)
-             ;               (set! complete-buffer-size (* complete-buffer-size 2))                            
-             ;               )
-             ;           (memmove buffer total-count read-buffer count)
-             ;;           (set! total-count (+ total-count count))
-             ;           (read-loop))))
-;
-            ;(read-loop)            
-
-            ;(define finished-buffer (malloc 'atomic total-count))
-            ;(memmove finished-buffer buffer total-count)
-            ;(define str (cast finished-buffer _pointer _string))
-            ;(printf "wrote: ~a ~a" total-count str))
         ))
 
 

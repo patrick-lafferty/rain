@@ -97,6 +97,7 @@
 (define history (new history%))
 
 (define (input-loop)
+    (with-handlers ([exn:fail? (lambda (e) (displayln e))])
     (let ([c (getchar)])
         (match c
             [9 (input-loop)]
@@ -117,13 +118,14 @@
             [_ 
                 (send commandline add-char (integer->char c))
                 (refresh-line)
-                (input-loop)])))
-
+                (input-loop)]))))
 
 (define (repl)
-    (display prompt-character)
-    (flush-output)
-    (input-loop)
-    (repl))
+    (with-handlers
+        ([exn:fail? (lambda (e) (displayln e))])
+        (display prompt-character)
+        (flush-output)
+        (input-loop)
+        (repl)))
 
 (repl)

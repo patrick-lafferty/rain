@@ -1,10 +1,11 @@
 #lang racket
 
-(define (can-execute file)
+(define (can-execute path)
+    ;(printf "can-execute: ~a ~n" path) 
     (let ([filename 
             (cond 
-                [(symbol? file) (symbol->string file)]
-                [(string? file) file]
+                [(symbol? path) (symbol->string path)]
+                [(string? path) path]
             )])
         (or (find-executable-path filename)
             (find-executable-path (format "~a.exe" filename)))))
