@@ -40,11 +40,16 @@
             (set-foreground-process-group terminal pgid)
             (send termios restore-tmodes terminal))))
 
+(require "profile.rkt")    
+(setup-profile)
+
 (define (combine-namespaces)
     (dynamic-rerequire "builtins.rkt")
     (let ([n (module->namespace "builtins.rkt")])
         (parameterize ([current-namespace n])
-            (namespace-require "filesystem.rkt"))
+            (namespace-require "filesystem.rkt")
+            (when (file-exists? user-profile)
+                (namespace-require user-profile)))
         n))
 
 (define shell-namespace (combine-namespaces))

@@ -10,9 +10,6 @@ piping could be done as fold?
 
 ((cmd) | (cmd2) | (cmd3))
 
-command line:
--multi-line entering
-
 
 jobs:
 -show list of jobs
@@ -30,7 +27,7 @@ shell object framework:
 objects instead of strings
 
 profile:
--have export-to-profile function that can export
+-DONE have export-to-profile function that can export
 any definition to the file to be loaded next time
 the shell runs
 

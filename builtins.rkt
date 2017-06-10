@@ -18,28 +18,9 @@
         (let ([expanded (filter (lambda (dir) (regexp-match? exp dir)) (directory-list))])
             (displayln expanded))))
     ;(regexp-match? #px"\\W*.txt" "text.txt")
-    
 
-(define (balance s)
-    (define (opposite c)
-        (match c
-            [#\( #\)]
-            [#\[ #\]]
-            [#\{ #\}]))
+
             
-    (define (helper str expected)
-        (let ([c (if (list? str) (if (null? str) str (first str)) str)])
-            (match c
-                ['() (null? expected)]
-                [(or #\( #\[ #\{) (helper (rest str) (cons (opposite c) expected))]
-                [(or #\) #\] #\}) 
-                    (if (eqv? c (first expected))
-                        (helper (rest str) (rest expected))
-                        #f)]
-                [_ (helper (rest str) expected)])))
-
-    (let ([str (if (string? s) (string->list s) s)])
-        (helper str '())))
 
 ;top-level interactive programs that print directly to stdout
 (define (launch2 path . arguments) 
@@ -66,6 +47,39 @@
         (let ([job (new job% [args (flatten (list path arguments #f))])])    
             (format "/dev/fd/~a" (send launcher launch-job job #f)))))
 
+
+(require (only-in racket/base (define racket-define)))
+
+(define sexp-table (make-hash))
+
+(define-syntax define
+    (syntax-rules ()
+        [(_ (id . params) body ...) 
+            (begin
+                (hash-set! sexp-table (quote id) 
+                    (list 
+                        'define
+                        (flatten 
+                            (list 
+                                (quote id) 
+                                (quote params))) 
+                        (quote body ...)))
+                (racket-define (id . params) body ...)) ]
+        [(_ other ...) (racket-define other ...)]
+                     
+    ))
+
+(require "profile.rkt")
+
+(define (export-to-file sexp-id filename) 
+    (if (hash-has-key? sexp-table sexp-id)
+        (let ([output (open-output-file filename #:exists 'append)])
+            (write (hash-ref sexp-table sexp-id) output)
+            (close-output-port output))
+        (printf "Can't export ~a, it's not defined" sexp-id)))
+
+(define (export-to-profile sexp-id)
+    (export-to-file sexp-id user-profile))
 
 (provide is-in-namespace? launch evaluate)
         

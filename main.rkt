@@ -132,9 +132,7 @@
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])
     (let ([c (getchar)])
         (match c
-            [4 (begin
-                    (send commandline clear))]
-                    ;(refresh-line))]
+            [4 (send commandline clear)]
             [9 (input-loop show-prompt?)]
             [10 (displayln "")   
                 (set! up-counter 0)
@@ -169,7 +167,6 @@
 (define (repl)
     (with-handlers
         ([exn:fail? (lambda (e) (displayln e))])
-        ;(display prompt-character)
         (refresh-line)
         (flush-output)
         (input-loop)
