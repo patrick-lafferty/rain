@@ -3,9 +3,7 @@
 ;This module defines built-in functions to be used
 ;in the shell's REPL
 
-(define (test-1) (displayln "line 1"))
-(define (test-2) (displayln "line 2"))
-(define (test-3) (displayln "line 3"))
+(require "version.rkt")
     
 (define (is-in-namespace? symbol [namespace (current-namespace)])
     (if (member symbol (namespace-mapped-symbols namespace)); (current-namespace)))
@@ -21,6 +19,27 @@
             (displayln expanded))))
     ;(regexp-match? #px"\\W*.txt" "text.txt")
     
+
+(define (balance s)
+    (define (opposite c)
+        (match c
+            [#\( #\)]
+            [#\[ #\]]
+            [#\{ #\}]))
+            
+    (define (helper str expected)
+        (let ([c (if (list? str) (if (null? str) str (first str)) str)])
+            (match c
+                ['() (null? expected)]
+                [(or #\( #\[ #\{) (helper (rest str) (cons (opposite c) expected))]
+                [(or #\) #\] #\}) 
+                    (if (eqv? c (first expected))
+                        (helper (rest str) (rest expected))
+                        #f)]
+                [_ (helper (rest str) expected)])))
+
+    (let ([str (if (string? s) (string->list s) s)])
+        (helper str '())))
 
 ;top-level interactive programs that print directly to stdout
 (define (launch2 path . arguments) 

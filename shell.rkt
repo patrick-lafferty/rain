@@ -97,26 +97,28 @@
         (set! is-top-level #f)
         (map (lambda (a) 
             (if (= (getn) 0)
+                (begin 
+                ;(printf "getn0 ~a" a)
                 (match a
-                    ['define a]
+                    ;[(list 'define a b ...) (list 'define a (change b))]
                     ['if a]
                     ['set a]
-                    ;[(cons head tail)]
                     [#t a]
                     [#f a]
                     [_ (cond
+                    ;todo: ignore checking first elem if in define/set/let
                             [(list? a) (change a)]
                             [(regexp? a) a]
                             [(char? a) a]
                             [(is-in-namespace? a shell-namespace) a]
                             [(is-in-namespace? (quote a) shell-namespace) a]
-                            [(can-execute a) 
-                                (if top-level
-                                    (launch (format "~a" a))
-                                    (evaluate (format "~a" a)))]
+                            ;[(can-execute a) 
+                            ;    (if top-level
+                            ;        (launch (format "~a" a))
+                            ;        (evaluate (format "~a" a)))]
                             [else a]
                         )] 
-                )
+                ))
                 (if (list? a)
                     (change a)
                     a)

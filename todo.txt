@@ -1,0 +1,40 @@
+-ignore checking first elem if in define/set/let
+
+general:
+-migrate to typed racket
+-implement unit testing
+-use more functional code where appropriate
+-document the code
+
+piping could be done as fold?
+
+((cmd) | (cmd2) | (cmd3))
+
+command line:
+-multi-line entering
+
+
+jobs:
+-show list of jobs
+-make fg able to continue any job not just the last
+-implement bg
+-redirect std{in, out, err}
+-pipes
+-sequenceof jobs
+
+expansion:
+-globbing
+
+shell object framework:
+-implement a series of replacements for binutils that return
+objects instead of strings
+
+profile:
+-have export-to-profile function that can export
+any definition to the file to be loaded next time
+the shell runs
+
+repl:
+-replace eval with own interpreter
+-have separate namespace for session so you can
+call clear-session to gc all the things 

@@ -26,9 +26,19 @@
 
         (define position 0)
         (define line '())
+        (define multiline '())
         (define length 0)
 
+        (define/public (is-in-multiline?) (not (null? multiline)))
+
+        (define/public (store)
+            (set! multiline (cons line multiline)))
+
         (define/public (clear)
+            (clear-single)
+            (set! multiline '()))
+
+        (define/public (clear-single)
             (set! position 0)
             (set! line '())
             (set! length 0))
@@ -84,6 +94,14 @@
                 (set! length (- length 1))
                 (set! position (- position 1))))
 
-        (define/public (get-line) (list->string (reverse line)))))
+        (define/public (get-line-single) (list->string (reverse line)))
+
+        (define/public (get-line) 
+            (if (null? multiline)
+                (list->string (reverse line))
+                (let ([folded-list (flatten (cons line multiline))])
+                    (list->string (reverse folded-list)))))
+
+    ))
 
 (provide commandline%)

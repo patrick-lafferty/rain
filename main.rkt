@@ -20,7 +20,9 @@
 
 (define-libc signal (_fun _int _int -> _void))
 
-(signal 22 1)
+(define SIGTTOU 22)
+(signal 2 1)
+(signal SIGTTOU 1)
 
 (require "ffi_readline.rkt")
 (define-libc getchar (_fun -> _int))
@@ -40,12 +42,13 @@
 ;del: 27, 91, 51, 126
 ;tab: 9
 
-(define (refresh-line)
+(define (refresh-line [show-prompt? #t])
     (printf "\x1b[2K") ;ANSI escape code CSI n K - Erase in Line
     (printf "\x1b[1G") ;ANSI escape code CSI n G - Cursor Horizontal Absolute
-    (display prompt-character)
-    (display (send commandline get-line))
-    (printf "\x1b[~aG" (+ 3 (send commandline get-position)))
+    (when show-prompt?
+        (display prompt-character))
+    (display (send commandline get-line-single))
+    (printf "\x1b[~aG" (+ (if show-prompt? 3 1) (send commandline get-position)))
     (flush-output)
     )
 
@@ -96,34 +99,78 @@
 (require "history.rkt")
 (define history (new history%))
 
-(define (input-loop)
+;(define (a) (ls))
+
+;balance define(a)(ls) [)]
+;...
+;(a) (ls)) [)]
+;a) (ls)) [))]
+
+(define (balanced s)
+    (define (opposite c)
+        (match c
+            [#\( #\)]
+            [#\[ #\]]
+            [#\{ #\}]))
+            
+    (define (helper str expected)
+        (let ([c (if (list? str) (if (null? str) str (first str)) str)])
+            (match c
+                ['() (null? expected)]
+                [(or #\( #\[ #\{) (helper (rest str) (cons (opposite c) expected))]
+                [(or #\) #\] #\}) 
+                    (if (eqv? c (first expected))
+                        (helper (rest str) (rest expected))
+                        #f)]
+                [_ (helper (rest str) expected)])))
+
+    (let ([str (if (string? s) (string->list s) s)])
+        (helper str '())))
+
+
+(define (input-loop [show-prompt? #t])
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])
     (let ([c (getchar)])
         (match c
-            [9 (input-loop)]
+            [4 (begin
+                    (send commandline clear))]
+                    ;(refresh-line))]
+            [9 (input-loop show-prompt?)]
             [10 (displayln "")   
                 (set! up-counter 0)
 
-                (when (> (send commandline get-length) 0)
-                    (send history add (send commandline get-line))
-                    (let ([line (send commandline get-line)])  
-                        (let ([code (read (open-input-string line))])  ;/recursive  (open-input-string line) #f (current-readtable) #f)])
-                            (cond
-                                [(list? code) (exec code)]
-                                [(symbol? code) (handle-symbol code)]
-                                [ else (printf "unknown: ~a~n" code)]))
-                        (send commandline clear)))]
-            [27 (handle-escape-sequence) (input-loop)]
-            [127 (send commandline backspace) (refresh-line) (input-loop)]
+                (if (> (send commandline get-length) 0)
+                    (let ([line (send commandline get-line)])
+                        (if (balanced line)
+                            (begin 
+                                (send history add line)
+                                (let ([code (read (open-input-string line))])                     
+                                    (cond
+                                        [(list? code) (exec code)]
+                                        [(symbol? code) (handle-symbol code)]
+                                        [ else (printf "unknown: ~a~n" code)]))
+                                (send commandline clear))
+                            (begin 
+                                (send commandline store)
+                                (send commandline clear-single)
+                                (refresh-line #f)
+                                (input-loop #f))))
+                    (when (send commandline is-in-multiline?)
+                        (refresh-line #f)
+                        (input-loop #f)))]
+            [27 (handle-escape-sequence) (input-loop show-prompt?)]
+            [127 (send commandline backspace) (refresh-line show-prompt?) (input-loop show-prompt?)]
+            [(? negative?) (displayln "eof?")]
             [_ 
                 (send commandline add-char (integer->char c))
-                (refresh-line)
-                (input-loop)]))))
+                (refresh-line show-prompt?)
+                (input-loop show-prompt?)]))))
 
 (define (repl)
     (with-handlers
         ([exn:fail? (lambda (e) (displayln e))])
-        (display prompt-character)
+        ;(display prompt-character)
+        (refresh-line)
         (flush-output)
         (input-loop)
         (repl)))
