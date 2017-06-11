@@ -81,5 +81,24 @@
 (define (export-to-profile sexp-id)
     (export-to-file sexp-id user-profile))
 
-(provide is-in-namespace? launch evaluate)
+;(define-syntax @ 
+;    (syntax-rules ()
+;        [(@ f . args) (printf "@f: ~a args: ~a~" f args)])) 
+;(define-syntax-rule (@ lst) (@@ (quote lst)))
+;(define-syntax @@ (syntax-rules() [(@@ lst) (printf "@@f: ~a~n" lst)]))
+
+#|(provide (except-out (all-from-out racket)
+                     #%app)
+         (rename-out [app #%app]))
+|#
+(define-syntax-rule (sh-app f arg ...) 
+                ;(if (string? f) 
+                    (begin 
+                        (printf "~v" f)
+                        (flush-output)
+                ;        (displayln "switching to shell mode")
+                ;        f)
+                    (apply f arg ...)))
+            (provide (rename-out [sh-app #%app]))
+(provide is-in-namespace? launch evaluate); (rename-out [app #%app]))
         

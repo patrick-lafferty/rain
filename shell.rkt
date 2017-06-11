@@ -50,6 +50,7 @@
             (namespace-require "filesystem.rkt")
             (when (file-exists? user-profile)
                 (namespace-require user-profile)))
+            
         n))
 
 (define shell-namespace (combine-namespaces))
@@ -163,12 +164,26 @@
             [_ (cons c acc)]))
 
     ;(rec code '()))
-    (change code))
+    ;(change code))
+    code)
+
+
+;(define-syntax-rule (app @ ( f . args))
+;    (printf "@f: ~a args: ~a" f args))
+;(define-syntax @ 
+;    (syntax-rules ()
+;        [(@ f . args) (printf "@f: ~a args: ~a" f args)]))    
+   ;(if (identifier-binding f) 
+    ;(f args)
+    ;(printf "~a is unbound~n" f)
+    ;))
+
+
 
 (define (exec code)
     (with-handlers 
         (
-            [exn:fail:contract:variable? (lambda (e) (unknown e code))]
+            ;[exn:fail:contract:variable? (lambda (e) (unknown e code))]
             [exn:fail? (lambda (e) (displayln e))])
         (let ([transformed-code (transform code)]);(reverse (transform code))])
             ;(writeln transformed-code)

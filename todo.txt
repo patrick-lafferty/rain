@@ -27,9 +27,7 @@ shell object framework:
 objects instead of strings
 
 profile:
--DONE have export-to-profile function that can export
-any definition to the file to be loaded next time
-the shell runs
+
 
 repl:
 -replace eval with own interpreter
