@@ -127,6 +127,7 @@
     (let ([str (if (string? s) (string->list s) s)])
         (helper str '())))
 
+(require "sh-lang.rkt")
 
 (define (input-loop [show-prompt? #t])
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])

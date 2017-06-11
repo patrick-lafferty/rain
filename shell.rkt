@@ -85,7 +85,7 @@
             [_ (print-tabs tab) (printf "~a)~n" (is-in-namespace? c))]))
     (rec code 0))
 
-(define (transform code)
+#|(define (transform code)
     (define is-top-level #t)
     ;(writeln code)
     ;instead of this soup,
@@ -166,6 +166,8 @@
     ;(rec code '()))
     ;(change code))
     code)
+|#
+
 
 
 ;(define-syntax-rule (app @ ( f . args))
@@ -185,7 +187,7 @@
         (
             ;[exn:fail:contract:variable? (lambda (e) (unknown e code))]
             [exn:fail? (lambda (e) (displayln e))])
-        (let ([transformed-code (transform code)]);(reverse (transform code))])
+        (let ([transformed-code code ]);(group (flatten code))]) ;(transform code)])
             ;(writeln transformed-code)
             (let ([result (eval transformed-code shell-namespace)])
                 (cond
@@ -210,4 +212,4 @@
     (send master-termios quit 0)
     (exit))
 
-(provide exec reload-shell handle-symbol quit shell%)
+(provide exec reload-shell handle-symbol quit shell% is-in-namespace? shell-namespace)

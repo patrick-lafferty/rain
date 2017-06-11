@@ -97,16 +97,25 @@
 
             (set-job-pgid job pid)
             (when fd
-                (define stdout-fd (list-ref fd 1))         
+                (let ([in (list-ref fd 0)]
+                      [out (list-ref fd 1)])
+                    (when in
+                        (dup2 in 0))
+
+                    (when out
+                        (dup2 out 1))
+                ))
+                #|(define stdout-fd (list-ref fd 1))         
                 (define stdin-fd (list-ref fd 0))  
                 (dup2 stdout-fd 1)
                 (close stdin-fd))
+                |#
 
             (send job become-foreground-process (send shell get-terminal))
             (let ([argv (send job get-argv)])
                 (execvp (first argv) argv))
 
-            (when fd (close (list-ref fd 1)))
+            ;(when fd (close (list-ref fd 1)))
 
             (send job stop (send shell get-terminal))
             (exit 1))
@@ -148,6 +157,38 @@
 
                             (close stdout-fd)
                             stdin-fd)))))
+                            
+        (define/public (run-job job fd-in fd-out)
+            (let ([pid (fork)])
+                (if (eq? pid 0)
+                    (launch-process job (list fd-in fd-out))
+                    (begin 
+                        (put-job-in-foreground job pid)
+                        (when fd-in (close fd-in))
+                        (when fd-out (close fd-out) )
+                    ))
+            ))
+
+        (define/public (launch-group jobs) 
+            (let ([pipes 
+                (map 
+                    (lambda (x) (let-values ([(fd result) (pipe)]) fd)) 
+                    (take jobs (sub1 (length jobs)))) ])
+                (letrec ([helper 
+                    (lambda (prev current fd-in fd-out)
+                        (match current
+                            [(cons a '()) 
+                                (run-job a fd-in #f)]
+                            [(cons a b) 
+                                (let* ([fd (first fd-out)]
+                                        [in (first fd)]
+                                        [out (second fd)])
+                                    (run-job a fd-in out)
+                                    (helper a b in (rest fd-out)))]
+                         ))])
+                                    
+                    (helper '() jobs #f pipes))))
+        
         ))
 
 

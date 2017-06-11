@@ -47,6 +47,37 @@
         (let ([job (new job% [args (flatten (list path arguments #f))])])    
             (format "/dev/fd/~a" (send launcher launch-job job #f)))))
 
+(define (run name [args '()] #:redirect-out [out ""] #:redirect-in [in ""] #:redirect-err [err ""])
+    (list name args))
+    ;(format "running ~a" args))
+;    (foldl (lambda (x acc)
+;        (if (null? acc)
+;            )) args)
+
+(define (pipe . jobs)
+    (let ([jjobs (map (lambda (j) 
+        (new job% [args (flatten (list j #f))])) jobs)])
+        (send launcher launch-group jjobs)))
+#|
+ls | sort | less
+   ^      ^
+  fd1    fd2
+
+(ls #f (first fd1))
+(sort (second fd1) fd2)
+(less fd2 #f)
+
+ls | sort
+
+pipes: '(fd1)
+
+(ls)
+
+need to connect ls stdout to sort stdin
+need to connect sort stdout to less stdin
+
+|#
+    
 
 (require (only-in racket/base (define racket-define)))
 
@@ -63,8 +94,9 @@
                             (list 
                                 (quote id) 
                                 (quote params))) 
-                        (quote body ...)))
-                (racket-define (id . params) body ...)) ]
+                        (quote (flatten (map (lambda (b) (quote b)) body ...))))) ;quote body ...)))
+                ;(racket-define id (lambda params body ... )))];(id . params) body ...)) ]
+                (racket-define (id . params) body ...))]
         [(_ other ...) (racket-define other ...)]
                      
     ))
@@ -91,7 +123,7 @@
                      #%app)
          (rename-out [app #%app]))
 |#
-(define-syntax-rule (sh-app f arg ...) 
+#|(define-syntax-rule (sh-app f arg ...) 
                 ;(if (string? f) 
                     (begin 
                         (printf "~v" f)
@@ -100,5 +132,6 @@
                 ;        f)
                     (apply f arg ...)))
             (provide (rename-out [sh-app #%app]))
+|#
 (provide is-in-namespace? launch evaluate); (rename-out [app #%app]))
         
