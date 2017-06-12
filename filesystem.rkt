@@ -1,7 +1,6 @@
 #lang racket
 
 (define (can-execute path)
-    ;(printf "can-execute: ~a ~n" path) 
     (let ([filename 
             (cond 
                 [(symbol? path) (symbol->string path)]

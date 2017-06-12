@@ -29,7 +29,7 @@
                     code)])))
 
 (define (group lst)
-    ;takes a list and splits by ['pipe, 'redirect-out])
+    ;takes a list and splits by 'pipe
 
     (define (r current up-to-now groups)    
             (match current

@@ -99,13 +99,6 @@
 (require "history.rkt")
 (define history (new history%))
 
-;(define (a) (ls))
-
-;balance define(a)(ls) [)]
-;...
-;(a) (ls)) [)]
-;a) (ls)) [))]
-
 (define (balanced s)
     (define (opposite c)
         (match c

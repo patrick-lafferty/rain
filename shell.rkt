@@ -68,127 +68,14 @@
         (when (eq? (first code) id)
             (printf "~a is unknown~n" id))))
 
-(define (print-tabs t)
-    (when (> t 0)
-        (display " ")
-        (print-tabs (sub1 t))))
-
 (require "builtins.rkt")
-
-(define (exec2 code) 
-    (define (rec c tab)
-        (match c
-            [(cons a b)
-                (print-tabs tab)
-                (printf "(~a~n" (is-in-namespace? a))
-                (rec b (add1 tab))]
-            [_ (print-tabs tab) (printf "~a)~n" (is-in-namespace? c))]))
-    (rec code 0))
-
-#|(define (transform code)
-    (define is-top-level #t)
-    ;(writeln code)
-    ;instead of this soup,
-    ;map the code,
-    ; 
-    (define (getnum)
-        (define x -1)
-        (lambda () 
-            (set! x (add1 x))
-            x))
-
-    (define (change lst)
-        (define getn (getnum))
-        (define top-level is-top-level)
-        (set! is-top-level #f)
-        (map (lambda (a) 
-            (if (= (getn) 0)
-                (begin 
-                ;(printf "getn0 ~a" a)
-                (match a
-                    ;[(list 'define a b ...) (list 'define a (change b))]
-                    ['if a]
-                    ['set a]
-                    [#t a]
-                    [#f a]
-                    [_ (cond
-                    ;todo: ignore checking first elem if in define/set/let
-                            [(list? a) (change a)]
-                            [(regexp? a) a]
-                            [(char? a) a]
-                            [(is-in-namespace? a shell-namespace) a]
-                            [(is-in-namespace? (quote a) shell-namespace) a]
-                            ;[(can-execute a) 
-                            ;    (if top-level
-                            ;        (launch (format "~a" a))
-                            ;        (evaluate (format "~a" a)))]
-                            [else a]
-                        )] 
-                ))
-                (if (list? a)
-                    (change a)
-                    a)
-        )) lst))
-
-    (define (rec c acc)
-        (match c
-            ['() acc]
-            [(cons first rest)
-                (if (list? first)
-                    (begin
-                        (if (eqv? (list-ref first 0) 'quote)
-                            (rec rest (cons first acc))
-                            (let ([result (reverse (rec first '()))])
-                                (rec rest (cons result acc)))))
-                    (begin   
-                        (cond
-                        ;[(eqv? first 'quote) (rec rest ]
-                        [(eqv? first 'define) (displayln "display~")]
-                        [(is-in-namespace? first shell-namespace)
-                            ;(parameterize ([current-namespace shell-namespace]) 
-                            ;(printf "f: ~a is: ~a isq: ~a~n" first (is-in-namespace? first) (is-in-namespace? (quote first)))
-                            ;#f)
-                          ;  (or
-                                ;(is-in-namespace? first) 
-                           ;     (is-in-namespace? (quote first))))   
-                            (rec rest (cons first acc))]
-                        [(can-execute first)
-                            ;(printf "can-execute: ~a~n" first)
-                            (let ([stringified (format "~a" first)])  
-                                (if is-top-level
-                                    (begin 
-                                        (set! is-top-level #f)
-                                        (rec rest (append acc `(,stringified launch))))
-                                    (rec rest (append acc `(,stringified evaluate)))))]
-                        [else (rec rest (cons first acc))])))]
-            [_ (cons c acc)]))
-
-    ;(rec code '()))
-    ;(change code))
-    code)
-|#
-
-
-
-;(define-syntax-rule (app @ ( f . args))
-;    (printf "@f: ~a args: ~a" f args))
-;(define-syntax @ 
-;    (syntax-rules ()
-;        [(@ f . args) (printf "@f: ~a args: ~a" f args)]))    
-   ;(if (identifier-binding f) 
-    ;(f args)
-    ;(printf "~a is unbound~n" f)
-    ;))
-
-
 
 (define (exec code)
     (with-handlers 
         (
             ;[exn:fail:contract:variable? (lambda (e) (unknown e code))]
             [exn:fail? (lambda (e) (displayln e))])
-        (let ([transformed-code code ]);(group (flatten code))]) ;(transform code)])
-            ;(writeln transformed-code)
+        (let ([transformed-code code ])
             (let ([result (eval transformed-code shell-namespace)])
                 (cond
                     [(void? result) (void)]
