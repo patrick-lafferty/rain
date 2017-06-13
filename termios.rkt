@@ -1,6 +1,8 @@
-#lang racket
+#lang racket/base
 
 (require ffi/unsafe)
+(require racket/class)
+(require racket/list)
 
 (define libc (ffi-lib #f))
 

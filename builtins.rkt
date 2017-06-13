@@ -3,6 +3,40 @@
 ;This module defines built-in functions to be used
 ;in the shell's REPL
 
+#|
+(require racket/bool)
+(require racket/bytes)
+(require racket/class)
+(require racket/cmdline)
+(require racket/contract)
+(require racket/dict)
+(require racket/file)
+(require racket/format)
+(require racket/function)
+(require racket/future)
+(require racket/include)
+(require racket/list)
+(require racket/local)
+(require racket/logging)
+(require racket/match)
+(require racket/math)
+(require racket/path)
+(require racket/place)
+(require racket/port)
+(require racket/pretty)
+(require racket/promise)
+(require racket/sequence)
+(require racket/set)
+(require racket/shared)
+(require racket/stream)
+(require racket/string)
+(require racket/system)
+(require racket/tcp)
+(require racket/udp)
+(require racket/unit)
+(require racket/vector)
+|#
+
 (require "version.rkt")
     
 (define (is-in-namespace? symbol [namespace (current-namespace)])
@@ -61,5 +95,5 @@
 (define (export-to-profile sexp-id)
     (export-to-file sexp-id user-profile))
 
-(provide is-in-namespace? launch evaluate)
+(provide is-in-namespace?)
         

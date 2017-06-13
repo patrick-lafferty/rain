@@ -1,9 +1,12 @@
-#lang racket
+#lang racket/base
 
 ;This module defines the namespace to be used for
 ;the shell's REPL
 
-(require racket/rerequire)
+;(require racket/rerequire)
+(require racket/class)
+(require racket/list)
+(require racket/match)
 (require "filesystem.rkt")
 (require "terminal.rkt")
 (require "termios.rkt")
@@ -43,8 +46,10 @@
 (require "profile.rkt")    
 (setup-profile)
 
+(require "builtins.rkt")
+
 (define (combine-namespaces)
-    (dynamic-rerequire "builtins.rkt")
+    ;(dynamic-rerequire "builtins.rkt")
     (let ([n (module->namespace "builtins.rkt")])
         (parameterize ([current-namespace n])
             (namespace-require "filesystem.rkt")

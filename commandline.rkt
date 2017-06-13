@@ -1,4 +1,7 @@
-#lang racket
+#lang racket/base
+
+(require racket/list)
+(require racket/class)
 
 (define (erase-at lst i)
     (define (helper c before after)

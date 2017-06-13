@@ -1,4 +1,6 @@
-#lang racket
+#lang racket/base
+
+(require racket/system)
 
 (define (can-execute path)
     (let ([filename 

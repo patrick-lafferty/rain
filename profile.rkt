@@ -1,11 +1,13 @@
-#lang racket
+#lang racket/base
+
+(require racket/file)
 
 (provide (all-defined-out))
 
 (define user-profile (expand-user-path "~/.lush_profile"))
 (define default-profile-contents 
     '(
-        "#lang racket"
+        "#lang racket/base"
         "(provide (all-defined-out))"
     ))
 

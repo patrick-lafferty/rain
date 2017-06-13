@@ -1,4 +1,8 @@
-#lang racket
+#lang racket/base
+
+(require racket/match)
+(require racket/class)
+(require racket/list)
 
 ;Basic shell that uses Racket as its scripting language
 
