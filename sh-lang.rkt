@@ -7,8 +7,9 @@
     (let ([escape 
         (lambda (arg) 
             (cond
-                [(eqv? '#:redirect-out arg) arg]
                 [(eqv? '#:redirect-in arg) arg]
+                [(eqv? '#:redirect-out arg) arg]
+                [(eqv? '#:redirect-err arg) arg]
                 [(symbol? arg) 
                     (if (is-in-namespace? arg shell-namespace) 
                         arg
@@ -35,8 +36,9 @@
             (match current
             [(cons a '()) (cons (escape-executable (cons a up-to-now)) groups)]
             [(cons 'pipe tail) (r tail '() (cons (escape-executable up-to-now) groups))]
-            [(cons '> tail) (r tail (cons '#:redirect-out up-to-now) groups)]
             [(cons '< tail) (r tail (cons '#:redirect-in up-to-now) groups)]
+            [(cons '> tail) (r tail (cons '#:redirect-out up-to-now) groups)]
+            [(cons '^ tail) (r tail (cons '#:redirect-err up-to-now) groups)]
             [(cons a b) (r b (cons a up-to-now) groups)]
         ))
     (let ([reversed (reverse (r lst '() '()))])

@@ -3,7 +3,6 @@ general:
 -implement unit testing
 -use more functional code where appropriate
 -document the code
--convert from #lang racket to #lang racket/base to try to improve startup time
 
 jobs:
 -show list of jobs

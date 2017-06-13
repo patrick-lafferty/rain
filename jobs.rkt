@@ -27,6 +27,7 @@
         -> (values fd r)))
 (define-libc dup2 (_fun _int _int -> _void))
 (define-libc read (_fun _int _pointer _int -> _int))
+(define-libc open (_fun _path _int _int -> _int))
 (define-libc close (_fun _int -> _int))
 
 (require "terminal.rkt")
@@ -34,9 +35,16 @@
 
 (define SIGCONT 18)
 
+(define O_RDONLY 0)
+(define O_WRONLY 1)
+(define O_RDWR 2)
+(define O_CREAT 64)
+(define S_IWUSR 128)
+(define S_IRUSR 256)
+
 (define job%
     (class object%
-        (init args)
+        (init args redirects)
         (super-new)
         (define termios (new termios% [is-shell #f]))
 
@@ -44,6 +52,13 @@
         (define pid 0)
         (define pgid 0)
         (define argv args)
+        (define stdin (list-ref redirects 0))
+        (define stdout (list-ref redirects 1))
+        (define stderr (list-ref redirects 2))
+
+        (define/public (get-stdin) stdin)
+        (define/public (get-stdout) stdout)
+        (define/public (get-stderr) stderr)
 
         (define/public (become-foreground-process terminal)
             (when can-continue?
@@ -107,6 +122,26 @@
                         (dup2 out 1)
                         (close out))
                 ))
+
+            (let ([stdin (send job get-stdin)]
+                  [stdout (send job get-stdout)]
+                  [stderr (send job get-stderr)])
+                  
+                  (when (non-empty-string? stdin)
+                    (let ([in (open stdin O_RDONLY 0)])
+                        (dup2 in 0)
+                        (close in)))
+
+                  (when (non-empty-string? stdout)
+                    (let ([out (open stdout (bitwise-ior O_WRONLY O_CREAT) (bitwise-ior S_IWUSR S_IRUSR))])
+                        (dup2 out 1)
+                        (close out)))
+                
+                  (when (non-empty-string? stderr)
+                    (let ([err (open stderr (bitwise-ior O_WRONLY O_CREAT) (bitwise-ior S_IWUSR S_IRUSR))])
+                        (dup2 err 2)
+                        (close err)))
+                  )
 
             (send job become-foreground-process (send shell get-terminal))
             (let ([argv (send job get-argv)])
