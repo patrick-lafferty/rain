@@ -8,7 +8,6 @@ jobs:
 -show list of jobs
 -make fg able to continue any job not just the last
 -implement bg
--redirect std{in, out, err}
 -PARTIALLY DONE pipes
 -sequenceof jobs
 
@@ -21,6 +20,8 @@ objects instead of strings
 
 profile:
 
+command line:
+-syntax colouring
 
 repl:
 -replace eval with own interpreter

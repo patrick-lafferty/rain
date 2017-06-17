@@ -1,7 +1,12 @@
 #lang racket
 
-(require "shell.rkt")
+;(require "shell.rkt")
 (require "filesystem.rkt")
+
+(define (is-in-namespace? symbol [namespace (current-namespace)])
+    (if (member symbol (namespace-mapped-symbols namespace))
+        #t
+        #f))
 
 (define (escape-args args)
     (let ([escape 
@@ -11,7 +16,7 @@
                 [(eqv? '#:redirect-out arg) arg]
                 [(eqv? '#:redirect-err arg) arg]
                 [(symbol? arg) 
-                    (if (is-in-namespace? arg shell-namespace) 
+                    (if (is-in-namespace? arg) ;shell-namespace) 
                         arg
                         (symbol->string arg))]
                 [else (format "~a" arg)]))])

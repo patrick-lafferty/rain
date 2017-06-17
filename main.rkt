@@ -7,9 +7,9 @@
 ;Basic shell that uses Racket as its scripting language
 
 (require "shell.rkt")
-(require racket/runtime-path)
+;(require racket/runtime-path)
 
-(define-runtime-path builtins "builtins.rkt")
+;(define-runtime-path builtins "builtins.rkt")
 
 (define prompt-character 
     (match (system-type 'os)

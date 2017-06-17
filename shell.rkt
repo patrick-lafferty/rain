@@ -48,17 +48,19 @@
 
 (require "builtins.rkt")
 
-(define (combine-namespaces)
+#|(define (combine-namespaces)
     ;(dynamic-rerequire "builtins.rkt")
-    (let ([n (module->namespace "builtins.rkt")])
+    (let ([n (make-base-emptynamespace)]); (module->namespace "builtins.rkt")])
         (parameterize ([current-namespace n])
-            (namespace-require "filesystem.rkt")
+            (namespace-require "filesystem.rkt)
             (when (file-exists? user-profile)
                 (namespace-require user-profile)))
             
         n))
-
-(define shell-namespace (combine-namespaces))
+        |#
+(define-namespace-anchor a)
+(define ns (namespace-anchor->namespace a))
+(define shell-namespace ns) ;(combine-namespaces))
 
 (require "jobs.rkt")
 
@@ -66,6 +68,7 @@
 (send master-termios save-tmodes 0)
 
 (define shell (new shell%))
+(define launcher (new launcher%))
 (send launcher set-shell shell)
 
 (define (unknown e code) 
@@ -73,7 +76,15 @@
         (when (eq? (first code) id)
             (printf "~a is unknown~n" id))))
 
-(require "builtins.rkt")
+;(require "builtins.rkt")
+(define (run name [args '()] #:redirect-in [in ""] #:redirect-out [out ""] #:redirect-err [err ""])
+    (list (list name args) in out err))
+(define (pipe . jobs)
+    (let ([jjobs (map (lambda (j) 
+        (new job% [args (flatten (list (first j) #f))]
+                [redirects (rest j)]
+            )) jobs)])
+        (send launcher launch-group jjobs)))
 
 (define (exec code)
     (with-handlers 
@@ -88,7 +99,7 @@
 
 (define (handle-symbol s)
     (match s
-        ['reload (reload-shell)]
+;        ['reload (reload-shell)]
         ['exit (quit)]
         ['fg (send launcher fg)]
         [ _ (parameterize ([current-namespace shell-namespace])
@@ -97,11 +108,11 @@
                     (printf "~a is undefined ~n" s)))]
     ))
 
-(define (reload-shell)
+#|(define (reload-shell)
     (set! shell-namespace (combine-namespaces)))
-
+|#
 (define (quit)
     (send master-termios quit 0)
     (exit))
 
-(provide exec reload-shell handle-symbol quit shell% is-in-namespace? shell-namespace)
+(provide exec #|reload-shell|# pipe handle-symbol quit shell% #|is-in-namespace?|# shell-namespace)

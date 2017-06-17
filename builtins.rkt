@@ -10,7 +10,7 @@
         #t
         #f))
 
-(require "jobs.rkt")
+;(require "jobs.rkt")
 
 (define (expand path) 
     (let ([exp (pregexp (string-replace path "*" "\\W*"))])
@@ -23,13 +23,13 @@
 (define (run name [args '()] #:redirect-in [in ""] #:redirect-out [out ""] #:redirect-err [err ""])
     (list (list name args) in out err))
 
-(define (pipe . jobs)
+#|(define (pipe . jobs)
     (let ([jjobs (map (lambda (j) 
         (new job% [args (flatten (list (first j) #f))]
                 [redirects (rest j)]
             )) jobs)])
         (send launcher launch-group jjobs)))
-
+|#
 (require (only-in racket/base (define racket-define)))
 
 (define sexp-table (make-hash))

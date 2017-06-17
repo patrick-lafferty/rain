@@ -1,5 +1,15 @@
 #lang racket
 
+;the module implements job control (a job is a shell-launched process)
+
+(provide 
+ ;represents a single process
+ job%
+
+ ;starts single or groups of jobs and tracks stopped jobs
+ launcher%
+ )
+
 (require ffi/unsafe)
 (require ffi/unsafe/define)
 
@@ -201,6 +211,7 @@
         ))
 
 
-(define launcher (new launcher%))
+#|(define launcher (new launcher%))
 
 (provide launcher job%)
+|#
