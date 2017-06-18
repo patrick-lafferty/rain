@@ -60,9 +60,14 @@
         (cons (make-hash (list (list params args))) parent)))
 
 (define (update-env params args parent)
-    (for ([p (map cons params args)])
-        (set-in-env! (car p) (cdr p) parent))
-    parent)
+    (if (list? params)
+        (begin 
+            (for ([p (map cons params args)])
+                (set-in-env! (car p) (cdr p) parent))
+            parent)
+        (begin 
+            (set-in-env! params args parent)
+            parent)))
 
 (define (make-empty-env parent) (cons (make-hash) parent))
 
@@ -126,15 +131,32 @@
             (debug-printf "lambda: ~v ~v~N" params body)
             (lambda args (let ([arguments (make-env params (interpret args env) env)])
                 (foldl (lambda (x acc) (interpret x arguments)) #f body)))]
-            ;(list params expr)]
-        [(list 'quote a) a]
-        [(list 'letrec val-exprs body ...)
+        [(list 'quote a) 
+            (debug-printf "interpret quote: ~v~n" a)
+            a]
+        [(list 'let val-exprs body ...)
+            (debug-printf "let val-exprs: ~v body: ~v~n" val-exprs body)
             (let* ([ids (map (match-lambda [(list id val) id]) val-exprs)]
-                  [values (map (match-lambda [(list id val) val]) val-exprs)]
+                   [values (map (match-lambda [(list id val) (interpret val env)]) val-exprs)])
+                   (let ([arguments (make-env ids values env)])
+                    (foldl (lambda (x acc) (interpret x arguments)) #f body)))]
+        [(list 'let* val-exprs body ...)
+            (debug-printf "let* val-exprs: ~v body: ~v~n" val-exprs body)
+            (let* ([temp-env (make-empty-env env)]
+                   [accumulated-env (foldl (lambda (x acc) (update-env (first x) (interpret (second x) acc) acc)) temp-env val-exprs)])
+                (foldl (lambda (x acc) (interpret x accumulated-env)) #f body))]
+
+        [(list 'letrec val-exprs body ...)
+            (debug-printf "letrec val-exprs: ~v body: ~v~n" val-exprs body)
+            (let* ([ids (map (match-lambda [(list id val) id]) val-exprs)]
+                  ;[values (map (match-lambda [(list id val) val]) val-exprs)]
                   [temp-env (make-env ids (map (lambda (x) 0) ids) env)])
                 
-                (let ([arguments (update-env ids (map (lambda (x) (interpret x temp-env)) values) temp-env)])
-                    (foldl (lambda (x acc) (interpret x arguments)) #f body)))]
+                ;(let ([arguments (update-env ids (map (lambda (x) (interpret x temp-env)) values) temp-env)])
+                (for ([p val-exprs])
+                    (update-env (first p) (interpret (second p) temp-env) temp-env))
+                (foldl (lambda (x acc) (interpret x temp-env)) #f body))]
+                ;    (foldl (lambda (x acc) (interpret x arguments)) #f body)))]
 
         [(list '!!local-or-string a) 
             (debug-printf "!!local-or-string a: ~v~n" a)
@@ -161,7 +183,7 @@
                         (let ([args (map (lambda (x) (interpret x env)) b)])
                             (apply proc args)))))]      
 
-        [a 
+        [a (debug-printf "interpret symbol: ~v~n" a)
             (if (symbol? a)
                 (lookup a env)
                 a)]        
@@ -240,11 +262,9 @@ pipe then creates all the necessary jobs and tells the launcher to run them
         (send (last jobs) redirect-err (third redirects))
         (send launcher launch-group jobs)))
 
-;TODO: replace with interpreter
 (define (exec code)
     (with-handlers 
-        (
-            [exn:fail? (lambda (e) (displayln e))])
+        ([exn:fail? (lambda (e) (displayln e))])
         (let ([transformed-code code ])
             (let ([result (interpret code (list repl-env profile-env) #t)])
                 (cond
