@@ -40,11 +40,16 @@
 
 ;(define (get x) (namespace-variable-value x))
 
+(define (fuck x ns)
+    (lambda _ 
+    (displayln "fuck")
+    (namespace-variable-value x #t #f (variable-reference->namespace (#%variable-reference x)))))
 (define (lookup x env) 
     (printf "lookup x: ~v env: ~v~n" x env)
-    (printf "symbol? x: ~v~n" (symbol? x))
+    ;(printf "symbol? x: ~v~n" (symbol? x))
     (cond
-        [(null? env) (namespace-variable-value x #t #f shell-namespace)]
+        [(null? env) 
+            (namespace-variable-value x #t (fuck x shell-namespace) shell-namespace)]
         [else 
             (if (symbol? x)
                 (let ([current (first env)])
@@ -53,43 +58,61 @@
                         (lookup x (rest env))))
                 x)]))
 
-(define (make-env params args)
+(define (make-env params args parent)
     (let ([pairs (map cons params args)])
-        (make-immutable-hash pairs)))
+        (cons (make-immutable-hash pairs) parent)))
 
 (define (interpret code [env (list sexp-table)])
-    (printf "interpreting code: ~v~n" code)
+    (printf "interpreting code ~v~n" code)
     (match code
         ['() code]
         [(list 'define (cons id params) expr)
-            (hash-set! (first env) id (list params expr))]
+            ;(printf "define: ~v ~v ~v~n" id params expr)
+            (hash-set! (first env) id (lambda args 
+                (let ([arguments (make-env params (interpret args env) env)])
+                    (interpret expr arguments))))]
+        [(list 'lambda params expr) 
+            (printf "lambda: ~v ~v~N" params expr)
+            (list params expr)]
+        ;[(cons 'quote tail) tail]
+        [(list 'quote a) a]
         [(list (? symbol? a) b ...) 
-            (printf "a: ~v~nb: ~a~n" a b)
-            (let ([proc (interpret a env)]) ;(apply (interpret a) b)])
+        ;[(list a b ...)
+            (printf "(? symbol? a): ~v~nb: ~a~n" a b)
+            (let ([proc (interpret a env)]) 
+                (printf "interpreted proc ~v~n" proc)
                 (if (list? proc)
                     (let ([params (first proc)]
-                          [body (flatten (rest proc))])
+                          [body (rest proc)])
                           (printf "params: ~v~nbody: ~v~n" params body)
-                          (let ([arguments (make-env params (interpret b env))])
+                          (let ([arguments (make-env params (interpret b env) env)])
                             (printf "arguments: ~v~n" arguments)
-                            (interpret body (cons arguments env))))
+                            (map (lambda (x) (interpret x arguments)) body)))
+                            ;(interpret body (cons arguments env))))
 
                     (begin 
                         (printf "applying proc: ~v with b: ~v~n" proc b)
                         (let ([args (map (lambda (x) (interpret x env)) b)])
-                            (printf "args: ~v~n" args)
+                        ;(let ([args (interpret b env)])
+                            ;(printf "args: ~v~n" args)
                             (apply proc args)))))]      
 
-        [a (lookup a env)]
-            ;(if (hash-has-key? sexp-table a)
-            ;    (hash-ref sexp-table a)
-            ;    (namespace-variable-value a))]
+        [a 
+            ;(printf "match code a: ~v~n" a)
+            (if (symbol? a)
+                (lookup a env)
+                a)]        
         [_ (printf "shouldn't get here: ~v~n" code)]))
 
 (define (source) 
     (let ([input-file (open-input-file user-profile)])
-        (let ([code (read input-file)])
-            (interpret code)
+        (letrec ([read-all (lambda _
+            (let ([code (read input-file)])
+                (unless (eof-object? code)
+                    (writeln code)
+                    (interpret code)
+                    (read-all))))])
+            (read-all)
         )))
 
 
@@ -132,19 +155,28 @@
 run is only used by sh-lang
 sh-lang transforms {ls ...} into (run "ls" ...) which collects all the args and redirects
 |#
-(define (run name [args '()] #:redirect-in [in ""] #:redirect-out [out ""] #:redirect-err [err ""])
-    (list (list name args) in out err))
+(define (run name [args '()]) ; [in ""] [out ""] [err ""])
+;(define (floob name [args '()] #:redirect-in [in ""] #:redirect-out [out ""] #:redirect-err [err ""])
+    (printf "running name: ~v args: ~v~n" name args)
+    (list name args) ); in out err))
+
 
 #|
 pipe is only used by sh-lang
 sh-lang transforms {... | ... | ...} into (pipe (run ...) (run ...) (run ...))
 pipe then creates all the necessary jobs and tells the launcher to run them
 |#
-(define (pipe . runs)
+(define (pipe runs redirects)
+    (printf "pipe runs: ~v~nredirects: ~v~n" runs redirects)
     (let ([jobs (map (lambda (j) 
-        (new job% [args (flatten (list (first j) #f))]
-                [redirects (rest j)]
-            )) runs)])
+        (printf "args: ~v~n" (flatten (list j #f)))
+        (new job% [args (flatten (list j #f))]
+                ;[redirects (rest j)]
+            )) (filter (lambda (l) (not (null? l))) runs))])
+        (printf "jobs: ~v~n" jobs)
+        (send (first jobs) redirect-in (first redirects))
+        (send (last jobs) redirect-out (second redirects))
+        (send (last jobs) redirect-err (third redirects))
         (send launcher launch-group jobs)))
 
 ;TODO: replace with interpreter

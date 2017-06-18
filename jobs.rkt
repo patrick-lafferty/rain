@@ -54,7 +54,7 @@
 
 (define job%
     (class object%
-        (init args redirects)
+        (init args) ;redirects)
         (super-new)
         (define termios (new termios% [is-shell #f]))
 
@@ -62,13 +62,17 @@
         (define pid 0)
         (define pgid 0)
         (define argv args)
-        (define stdin (list-ref redirects 0))
-        (define stdout (list-ref redirects 1))
-        (define stderr (list-ref redirects 2))
+        (define stdin "") ; (list-ref redirects 0))
+        (define stdout "") ;(list-ref redirects 1))
+        (define stderr "") ;(list-ref redirects 2))
 
         (define/public (get-stdin) stdin)
         (define/public (get-stdout) stdout)
         (define/public (get-stderr) stderr)
+
+        (define/public (redirect-in in) (set! stdin in))
+        (define/public (redirect-out out) (set! stdout out))
+        (define/public (redirect-err err) (set! stderr err))
 
         (define/public (become-foreground-process terminal)
             (when can-continue?
@@ -120,6 +124,8 @@
         (define/public (launch-process job fd)
             (define pid (getpid))
             (set-job-pgid job pid)
+
+            (printf "launching process: ~v~n" (send job get-argv))
 
             (when fd
                 (let ([in (list-ref fd 0)]
@@ -196,6 +202,7 @@
                 (map 
                     (lambda (x) (let-values ([(fd result) (pipe)]) fd)) 
                     (take jobs (sub1 (length jobs)))) ])
+                (printf "pipes: ~v~n" pipes)
                 (letrec ([helper 
                     (lambda (prev current fd-in fd-out)
                         (match current

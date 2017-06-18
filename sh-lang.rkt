@@ -14,9 +14,9 @@
     (let ([escape 
         (lambda (arg) 
             (cond
-                [(eqv? '#:redirect-in arg) arg]
-                [(eqv? '#:redirect-out arg) arg]
-                [(eqv? '#:redirect-err arg) arg]
+                [(eqv? 'redirect-in arg) arg]
+                [(eqv? 'redirect-out arg) arg]
+                [(eqv? 'redirect-err arg) arg]
                 [(symbol? arg) 
                     (if (is-in-namespace? arg) ;shell-namespace) 
                         arg
@@ -41,18 +41,32 @@
 takes a list of shell commands, escapes runables,
 replaces </^/> with keyword args to run func
 |#
+(define (extract-redirects args [in ""] [out ""] [err ""]) ;#:redirect-in [in ""] #:redirect-out [out ""] #:redirect-err [err ""])
+    (if (null? args) 
+        (list in out err)
+        (let ([top (first args)])
+            (match (escape-args top)
+                [(list 'redirect-in in) (extract-redirects (rest args) in out err)]
+                [(list 'redirect-out out) (extract-redirects (rest args) in out err)]
+                [(list 'redirect-err err) (extract-redirects (rest args) in out err)]))))
+
 (define (group lst)
-    (define (r current up-to-now groups)    
+    (define (r current up-to-now groups redirects)    
             (match current
-            [(cons a '()) (cons (escape-executable (cons a up-to-now)) groups)]
-            [(cons 'pipe tail) (r tail '() (cons (escape-executable up-to-now) groups))]
-            [(cons '< tail) (r tail (cons '#:redirect-in up-to-now) groups)]
-            [(cons '> tail) (r tail (cons '#:redirect-out up-to-now) groups)]
-            [(cons '^ tail) (r tail (cons '#:redirect-err up-to-now) groups)]
-            [(cons a b) (r b (cons a up-to-now) groups)]
+            [(cons a '()) (cons (cons (escape-executable (cons a up-to-now)) groups) redirects)]
+            [(cons 'pipe tail) (r tail '() (cons (escape-executable up-to-now) groups) redirects)]
+            [(list  '< in tail ...) (r tail up-to-now groups (cons (list 'redirect-in in) redirects))]
+            [(list  '> out) (cons (cons (escape-executable up-to-now) groups) (cons (list 'redirect-out out) redirects))]
+            [(list  '> out tail ...) (r tail up-to-now groups (cons (list 'redirect-out out) redirects))]
+            [(list  '^ err tail ...) (r tail up-to-now groups (cons (list 'redirect-err err) redirects))]
+            [(cons a b) (r b (cons a up-to-now) groups redirects)]
         ))
-    (let ([reversed (reverse (r lst '() '()))])
-        (cons 'pipe reversed)))
+    (let ([result #|(reverse|# (r lst '() '() '())])
+        (let ([redirects (rest result)]
+              [groups (cons 'list (reverse (first result)))])
+              (printf "groups: ~v~n" groups)
+              (list 'pipe groups (extract-redirects redirects))))) ;(keyword-apply extract-redirects rs fs))))))
+        ;(cons 'pipe reversed)))
 
 ;the read function used when { is encountered
 (define (sh-read-proc char in src ln col pos)
