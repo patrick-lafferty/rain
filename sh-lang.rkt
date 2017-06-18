@@ -4,6 +4,7 @@
 ;by interpreting the contents as shell commands with a different syntax
 
 (require "filesystem.rkt")
+(require "debug_printf.rkt")
 
 (define (is-in-namespace? symbol [namespace (current-namespace)])
     (if (member symbol (namespace-mapped-symbols namespace))
@@ -32,8 +33,6 @@
         (match code
             [(list 'if a b c)  (list 'if (escape-executable a) (escape-executable b) (escape-executable c))]
             [(list a b ...)
-            ;[(cons a b)
-                    (printf "b: ~v~n" b)
                 (if (can-execute a)
                     ;(flatten (list 'run (symbol->string a) (escape-args b)))
                     ;(list 'run (symbol->string a) (escape-args b))
@@ -70,7 +69,7 @@ replaces </^/> with keyword args to run func
     (let ([result #|(reverse|# (r lst '() '() '())])
         (let ([redirects (rest result)]
               [groups (cons 'list (reverse (first result)))])
-              (printf "groups: ~v~n" groups)
+              (debug-printf "groups: ~v~n" groups)
               (list 'pipe groups (extract-redirects redirects))))) ;(keyword-apply extract-redirects rs fs))))))
         ;(cons 'pipe reversed)))
 

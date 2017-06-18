@@ -125,8 +125,6 @@
             (define pid (getpid))
             (set-job-pgid job pid)
 
-            (printf "launching process: ~v~n" (send job get-argv))
-
             (when fd
                 (let ([in (list-ref fd 0)]
                       [out (list-ref fd 1)])
@@ -202,7 +200,6 @@
                 (map 
                     (lambda (x) (let-values ([(fd result) (pipe)]) fd)) 
                     (take jobs (sub1 (length jobs)))) ])
-                (printf "pipes: ~v~n" pipes)
                 (letrec ([helper 
                     (lambda (prev current fd-in fd-out)
                         (match current
