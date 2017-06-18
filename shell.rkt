@@ -69,10 +69,12 @@
         ['() code]
         [(list 'set! a b)
             (set-in-env! a b env)]
-        [(list 'define (cons id params) expr)
-            (hash-set! (first env) id (lambda args 
-                (let ([arguments (make-env params (interpret args env) env)])
-                    (interpret expr arguments))))]
+        [(list 'define (cons id params) body ...)
+            (let ([define-env (make-empty-env env)])
+                (hash-set! (first env) id (lambda args 
+                    (let ([arguments (make-env params (interpret args define-env) env)])
+                        (foldl (lambda (x acc) (interpret x arguments)) #f body)))))]
+                        ;(interpret expr arguments))))]
         [(list 'define (list id) body ...)
             (let ([define-env (make-empty-env env)])
                 (hash-set! (first env) id (lambda _ 
