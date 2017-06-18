@@ -41,14 +41,27 @@
                         (lookup x (rest env))))
                 x)]))
 
+(define (set-in-env! x value env)
+    (debug-printf "set-in-env! x: ~v value: ~v env: ~v~n" x value env)
+    (if (null? env)
+        (namespace-set-variable-value! x value #t shell-namespace)
+        (when (symbol? x)
+            (let ([current (first env)])
+                (if (hash-has-key? current x)
+                    (hash-set! current x value)
+                    (set-in-env! x value (rest env))))))) 
+        
+
 (define (make-env params args parent)
     (let ([pairs (map cons params args)])
-        (cons (make-immutable-hash pairs) parent)))
+        (cons (make-hash pairs) parent)))
 
 (define (interpret code [env (list sexp-table)])
     (debug-printf "interpreting code ~v~n" code)
     (match code
         ['() code]
+        [(list 'set! a b)
+            (set-in-env! a b env)]
         [(list 'define (cons id params) expr)
             (hash-set! (first env) id (lambda args 
                 (let ([arguments (make-env params (interpret args env) env)])
@@ -139,10 +152,9 @@
 run is only used by sh-lang
 sh-lang transforms {ls ...} into (run "ls" ...) which collects all the args and redirects
 |#
-(define (run name . args) ;[args '()]) ; [in ""] [out ""] [err ""])
-;(define (floob name [args '()] #:redirect-in [in ""] #:redirect-out [out ""] #:redirect-err [err ""])
+(define (run name . args) 
     (debug-printf "running name: ~v args: ~v~n" name args)
-    (list name args) ); in out err))
+    (list name args))
 
 
 #|
@@ -155,7 +167,6 @@ pipe then creates all the necessary jobs and tells the launcher to run them
     (let ([jobs (map (lambda (j) 
         (debug-printf "args: ~v~n" (flatten (list j #f)))
         (new job% [args (flatten (list j #f))]
-                ;[redirects (rest j)]
             )) (filter (lambda (l) (not (null? l))) runs))])
         (debug-printf "jobs: ~v~n" jobs)
         (send (first jobs) redirect-in (first redirects))
@@ -169,7 +180,7 @@ pipe then creates all the necessary jobs and tells the launcher to run them
         (
             [exn:fail? (lambda (e) (displayln e))])
         (let ([transformed-code code ])
-            (let ([result (interpret code)]);(eval transformed-code shell-namespace)])
+            (let ([result (interpret code)])
                 (cond
                     [(void? result) (void)]
                     [else (displayln result)])))))
