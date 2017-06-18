@@ -56,6 +56,8 @@
     (let ([pairs (map cons params args)])
         (cons (make-hash pairs) parent)))
 
+(define (make-empty-env parent) (cons (make-hash) parent))
+
 (define profile-env (make-hash))
 (define repl-env (make-hash))
 
@@ -71,6 +73,12 @@
             (hash-set! (first env) id (lambda args 
                 (let ([arguments (make-env params (interpret args env) env)])
                     (interpret expr arguments))))]
+        [(list 'define (list id) body ...)
+            (let ([define-env (make-empty-env env)])
+                (hash-set! (first env) id (lambda _ 
+                        (foldl (lambda (x acc) (interpret x define-env)) #f body))))]
+        [(list 'define id expr)
+            (hash-set! (first env) id (interpret expr env))]
         [(list 'lambda params expr) 
             (debug-printf "lambda: ~v ~v~N" params expr)
             (list params expr)]
