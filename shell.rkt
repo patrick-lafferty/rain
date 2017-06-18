@@ -53,8 +53,12 @@
         
 
 (define (make-env params args parent)
-    (let ([pairs (map cons params args)])
-        (cons (make-hash pairs) parent)))
+    (debug-printf "make-env params: ~v args: ~v~n" params args)
+    (if (list? params)
+        (let ([pairs (map cons params args)])
+            (cons (make-hash pairs) parent))
+        (cons (make-hash (list (list params args))) parent)))
+
 
 (define (make-empty-env parent) (cons (make-hash) parent))
 
@@ -70,6 +74,19 @@
     (debug-printf "interpreting code ~v~n" code)
     (match code
         ['() code]
+        [(? number? n) n]
+        [(? boolean? b) b]
+        [(list 'or) #f]
+        [(list 'or exprs ...)
+            (letrec ([shortcircuit-interpret 
+                (lambda (head tail)
+                    (if (interpret head env)
+                        #t
+                        (if (null? tail)
+                            #f
+                            (shortcircuit-interpret (first tail) (rest tail)))))])
+                (shortcircuit-interpret (first exprs) (rest exprs)))]
+            
         [(list 'set! a b)
             (set-in-env! a b env)]
         [(list 'define (cons id params) body ...)
@@ -86,10 +103,18 @@
         [(list 'define id expr)
             (when top-level? (hash-set! source-env id code))
             (hash-set! (first env) id (interpret expr env))]
-        [(list 'lambda params expr) 
-            (debug-printf "lambda: ~v ~v~N" params expr)
-            (list params expr)]
+        [(list 'lambda params body ...) 
+            (debug-printf "lambda: ~v ~v~N" params body)
+            (lambda args (let ([arguments (make-env params (interpret args env) env)])
+                (foldl (lambda (x acc) (interpret x arguments)) #f body)))]
+            ;(list params expr)]
         [(list 'quote a) a]
+        [(list 'letrec val-exprs body ...)
+            (let ([ids (map (match-lambda [(list id val) id]) val-exprs)]
+                  [values (map (match-lambda [(list id val) val]) val-exprs)])
+                (let ([arguments (make-env ids (map (lambda (x) (interpret x env)) values) env)])
+                    (foldl (lambda (x acc) (interpret x arguments)) #f body)))]
+
         [(list '!!local-or-string a) 
             (debug-printf "!!local-or-string a: ~v~n" a)
             (let ([local? (lookup a env)])
