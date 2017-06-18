@@ -1,6 +1,8 @@
 #lang racket
 
-;(require "shell.rkt")
+;the module alters the readtable to handle {} delimiters differently
+;by interpreting the contents as shell commands with a different syntax
+
 (require "filesystem.rkt")
 
 (define (is-in-namespace? symbol [namespace (current-namespace)])
@@ -22,6 +24,7 @@
                 [else (format "~a" arg)]))])
         (map escape args)))
 
+;transforms any possible executable call (a ...) into (run "a" ...)
 (define (escape-executable lst)
     (let ([code (if (list? lst) (reverse lst) lst)])
         (match code
@@ -34,9 +37,11 @@
                     (list 'run (symbol->string code))
                     code)])))
 
+#|
+takes a list of shell commands, escapes runables,
+replaces </^/> with keyword args to run func
+|#
 (define (group lst)
-    ;takes a list and splits by 'pipe
-
     (define (r current up-to-now groups)    
             (match current
             [(cons a '()) (cons (escape-executable (cons a up-to-now)) groups)]
@@ -49,6 +54,7 @@
     (let ([reversed (reverse (r lst '() '()))])
         (cons 'pipe reversed)))
 
+;the read function used when { is encountered
 (define (sh-read-proc char in src ln col pos)
     (define epip '(#\e #\p #\i #\p))
     (define (transform lst)

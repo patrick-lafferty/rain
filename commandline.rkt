@@ -1,5 +1,11 @@
 #lang racket/base
 
+;the module deals with the user input from the shell's command line
+
+(provide 
+ ;class that handles basic input editing
+ commandline%)
+
 (require racket/list)
 (require racket/class)
 
@@ -107,4 +113,3 @@
 
     ))
 
-(provide commandline%)

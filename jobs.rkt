@@ -119,8 +119,8 @@
 
         (define/public (launch-process job fd)
             (define pid (getpid))
-
             (set-job-pgid job pid)
+
             (when fd
                 (let ([in (list-ref fd 0)]
                       [out (list-ref fd 1)])
@@ -155,7 +155,8 @@
 
             (send job become-foreground-process (send shell get-terminal))
             (let ([argv (send job get-argv)])
-                (execvp (first argv) argv))
+                (let ([result (execvp (first argv) argv)])
+                    (printf "execp result: ~v~n" result)))
 
             (send job stop (send shell get-terminal))
             (exit 1))
@@ -169,7 +170,8 @@
             
             ;TODO: change waiting to wait on all from process group
             (define-values (status result) (waitpid WAIT_ANY WUNTRACED))
-            
+            (displayln "")
+
             (cond
                 [(= 1 (childStopped status)) (set! stoppedJobs (cons job stoppedJobs))]
                 [(= 1 (childExited status)) void])
@@ -185,7 +187,7 @@
                     (begin 
                         (put-job-in-foreground job pid)
                         (when fd-in (close fd-in))
-                        (when fd-out (close fd-out) )
+                        (when fd-out (close fd-out))
                     ))
             ))
 
@@ -209,9 +211,3 @@
                                     
                     (helper '() jobs #f pipes))))
         ))
-
-
-#|(define launcher (new launcher%))
-
-(provide launcher job%)
-|#

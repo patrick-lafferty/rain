@@ -1,5 +1,11 @@
 #lang racket/base
 
+;the module provides an alternate read-line because
+;read-line on WSL doesn't seem to work
+
+(provide 
+ ffi-read-line)
+
 (require ffi/unsafe)
 
 (define libc (ffi-lib #f))
@@ -16,5 +22,3 @@
     (let ([line (helper '())])
         (let ([reversed (reverse (map (lambda (i) (integer->char i)) line))])
             (list->string reversed))))
-
-(provide ffi-read-line)

@@ -1,5 +1,11 @@
 #lang racket/base
 
+;the module provides a class that interacts with the unix api for terminal i/o
+
+(provide 
+ ;class that handles saving/restoring terminal io states
+ termios%)
+
 (require ffi/unsafe)
 (require racket/class)
 (require racket/list)
@@ -41,5 +47,3 @@
                 
         (define/public (quit terminal)
             (tcsetattr terminal 0 tmodes))))
-
-(provide termios%)
