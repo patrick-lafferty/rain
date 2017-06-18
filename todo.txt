@@ -24,6 +24,4 @@ command line:
 -syntax colouring
 
 repl:
--replace eval with own interpreter
--have separate namespace for session so you can
-call clear-session to gc all the things 
+-IN PROGRESS replace eval with own interpreter

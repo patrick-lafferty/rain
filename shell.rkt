@@ -56,7 +56,12 @@
     (let ([pairs (map cons params args)])
         (cons (make-hash pairs) parent)))
 
-(define (interpret code [env (list sexp-table)])
+(define profile-env (make-hash))
+(define repl-env (make-hash))
+
+(define (reset-repl-env) (hash-clear! repl-env))
+
+(define (interpret code env) ;[env (list sexp-table)])
     (debug-printf "interpreting code ~v~n" code)
     (match code
         ['() code]
@@ -107,7 +112,7 @@
             (let ([code (read input-file)])
                 (unless (eof-object? code)
                     (writeln code)
-                    (interpret code)
+                    (interpret code (list profile-env))
                     (read-all))))])
             (read-all)
         )))
@@ -180,7 +185,7 @@ pipe then creates all the necessary jobs and tells the launcher to run them
         (
             [exn:fail? (lambda (e) (displayln e))])
         (let ([transformed-code code ])
-            (let ([result (interpret code)])
+            (let ([result (interpret code (list repl-env profile-env))])
                 (cond
                     [(void? result) (void)]
                     [else (displayln result)])))))
