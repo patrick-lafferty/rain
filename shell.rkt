@@ -60,26 +60,31 @@
 
 (define profile-env (make-hash))
 (define repl-env (make-hash))
+(define source-env (make-hash))
 
-(define (reset-repl-env) (hash-clear! repl-env))
+(define (reset-repl-env) 
+    (hash-clear! repl-env)
+    (hash-clear! source-env))
 
-(define (interpret code env) ;[env (list sexp-table)])
+(define (interpret code env [top-level? #f]) 
     (debug-printf "interpreting code ~v~n" code)
     (match code
         ['() code]
         [(list 'set! a b)
             (set-in-env! a b env)]
         [(list 'define (cons id params) body ...)
+            (when top-level? (hash-set! source-env id code))
             (let ([define-env (make-empty-env env)])
                 (hash-set! (first env) id (lambda args 
                     (let ([arguments (make-env params (interpret args define-env) env)])
                         (foldl (lambda (x acc) (interpret x arguments)) #f body)))))]
-                        ;(interpret expr arguments))))]
         [(list 'define (list id) body ...)
+            (when top-level? (hash-set! source-env id code))
             (let ([define-env (make-empty-env env)])
                 (hash-set! (first env) id (lambda _ 
                         (foldl (lambda (x acc) (interpret x define-env)) #f body))))]
         [(list 'define id expr)
+            (when top-level? (hash-set! source-env id code))
             (hash-set! (first env) id (interpret expr env))]
         [(list 'lambda params expr) 
             (debug-printf "lambda: ~v ~v~N" params expr)
@@ -122,7 +127,7 @@
             (let ([code (read input-file)])
                 (unless (eof-object? code)
                     (writeln code)
-                    (interpret code (list profile-env))
+                    (interpret code (list profile-env) #t)
                     (read-all))))])
             (read-all)
         )))
@@ -195,7 +200,7 @@ pipe then creates all the necessary jobs and tells the launcher to run them
         (
             [exn:fail? (lambda (e) (displayln e))])
         (let ([transformed-code code ])
-            (let ([result (interpret code (list repl-env profile-env))])
+            (let ([result (interpret code (list repl-env profile-env) #t)])
                 (cond
                     [(void? result) (void)]
                     [else (displayln result)])))))
@@ -211,45 +216,24 @@ and if not checks to see if its a value we can print
             (send master-termios quit 0)
             (exit)]
         ['fg (send launcher fg)]
-        [ _ (parameterize ([current-namespace shell-namespace])
-                (if (is-in-namespace? s shell-namespace)
-                    (displayln (eval s))    
-                    (printf "~a is undefined ~n" s)))]
+        [ _ (let ([value (lookup s (list repl-env profile-env))])
+                (if value
+                    (displayln value)
+                    (printf "~a is undefined~n" s)))]
     ))
 
-(require (only-in racket/base (define racket-define)))
-
-(define sexp-table (make-hash))
-
-#|(define-syntax define
-    (syntax-rules ()
-        [(_ (id . params) body ...) 
-            (begin
-                (hash-set! sexp-table (quote id) 
-                    (list 
-                        'define
-                        (flatten 
-                            (list 
-                                (quote id) 
-                                (quote params))) 
-                        (quote (flatten (map (lambda (b) (quote b)) body ...))))) 
-                (racket-define (id . params) body ...))]
-        [(_ other ...) (racket-define other ...)]
-                     
-    ))|#
-
-(define (export-to-file sexp-id filename) 
-    (if (hash-has-key? sexp-table sexp-id)
+(define (export-to-file id filename) 
+    (let ([value (lookup id (list source-env))])
         (let ([output (open-output-file filename #:exists 'append)])
-            (write (hash-ref sexp-table sexp-id) output)
+            (writeln value output) 
             (close-output-port output))
-        (printf "Can't export ~a, it's not defined" sexp-id)))
+        (printf "Can't export ~a, it's not defined" id)))
 
-(define (export-to-profile sexp-id)
-    (export-to-file sexp-id user-profile))
+(define (export-to-profile id)
+    (export-to-file id user-profile))
 
-(define (print-sexp sexp-id)
-    (when (hash-has-key? sexp-table sexp-id)
-        (displayln (hash-ref sexp-table sexp-id))))
+(define (print-source id)
+    (let ([value (lookup id (list source-env))])
+        (when value (displayln value))))
 
 (source)
