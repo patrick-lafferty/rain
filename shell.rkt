@@ -40,16 +40,13 @@
 
 ;(define (get x) (namespace-variable-value x))
 
-(define (fuck x ns)
-    (lambda _ 
-    (displayln "fuck")
-    (namespace-variable-value x #t #f (variable-reference->namespace (#%variable-reference x)))))
+
 (define (lookup x env) 
     (printf "lookup x: ~v env: ~v~n" x env)
     ;(printf "symbol? x: ~v~n" (symbol? x))
     (cond
         [(null? env) 
-            (namespace-variable-value x #t (fuck x shell-namespace) shell-namespace)]
+            (namespace-variable-value x #t (lambda _ #f) shell-namespace)]
         [else 
             (if (symbol? x)
                 (let ([current (first env)])
@@ -76,7 +73,19 @@
             (list params expr)]
         ;[(cons 'quote tail) tail]
         [(list 'quote a) a]
-        [(list (? symbol? a) b ...) 
+        [(list '!!local-or-string a) 
+            (printf "!!local-or-string a: ~v~n" a)
+            (let ([local? (lookup a env)])
+                (printf "local: ~v~n" local?)
+                (if local?
+                    local?
+                    (symbol->string a)))]
+        ;[(list (? list? a) b ...) 
+        ;    (let ([proc (interpret a env)])
+        ;        (printf "interpreted variable proc ~v~n" proc)
+
+
+        [(list (or (? symbol? a) (? list? a)) b ...) 
         ;[(list a b ...)
             (printf "(? symbol? a): ~v~nb: ~a~n" a b)
             (let ([proc (interpret a env)]) 
@@ -155,7 +164,7 @@
 run is only used by sh-lang
 sh-lang transforms {ls ...} into (run "ls" ...) which collects all the args and redirects
 |#
-(define (run name [args '()]) ; [in ""] [out ""] [err ""])
+(define (run name . args) ;[args '()]) ; [in ""] [out ""] [err ""])
 ;(define (floob name [args '()] #:redirect-in [in ""] #:redirect-out [out ""] #:redirect-err [err ""])
     (printf "running name: ~v args: ~v~n" name args)
     (list name args) ); in out err))

@@ -11,7 +11,7 @@
         #f))
 
 (define (escape-args args)
-    (let ([escape 
+    (letrec ([escape 
         (lambda (arg) 
             (cond
                 [(eqv? 'redirect-in arg) arg]
@@ -20,7 +20,9 @@
                 [(symbol? arg) 
                     (if (is-in-namespace? arg) ;shell-namespace) 
                         arg
-                        (symbol->string arg))]
+                        (list '!!local-or-string arg))]
+                        ;(symbol->string arg))]
+                [(list? arg) (map escape arg)]
                 [else (format "~a" arg)]))])
         (map escape args)))
 
@@ -30,8 +32,12 @@
         (match code
             [(list 'if a b c)  (list 'if (escape-executable a) (escape-executable b) (escape-executable c))]
             [(list a b ...)
+            ;[(cons a b)
+                    (printf "b: ~v~n" b)
                 (if (can-execute a)
-                    (flatten (list 'run (symbol->string a) (escape-args b)))
+                    ;(flatten (list 'run (symbol->string a) (escape-args b)))
+                    ;(list 'run (symbol->string a) (escape-args b))
+                    (cons 'run (cons (symbol->string a) (escape-args b)))
                     lst)]
             [_ (if (can-execute code)
                     (list 'run (symbol->string code))
@@ -81,7 +87,7 @@ replaces </^/> with keyword args to run func
             [str (list->string (transform lst))])
         
         (let ([datum (read (open-input-string str))])
-            (let ([grouped (group (flatten datum))])
+            (let ([grouped (group datum)])  ;(flatten datum))])
                 grouped))))
         
 (current-readtable (make-readtable (current-readtable) #\{ 'terminating-macro sh-read-proc))
