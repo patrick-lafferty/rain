@@ -59,6 +59,10 @@
             (cons (make-hash pairs) parent))
         (cons (make-hash (list (list params args))) parent)))
 
+(define (update-env params args parent)
+    (for ([p (map cons params args)])
+        (set-in-env! (car p) (cdr p) parent))
+    parent)
 
 (define (make-empty-env parent) (cons (make-hash) parent))
 
@@ -76,7 +80,22 @@
         ['() code]
         [(? number? n) n]
         [(? boolean? b) b]
+        [(list 'if test-expr then-expr else-expr)
+            (if (interpret test-expr env)
+                (interpret then-expr env)
+                (interpret else-expr env))]
         [(list 'or) #f]
+        [(list 'and) #t]
+        [(list 'and exprs ...)
+            (letrec ([shortcircuit-interpret
+                (lambda (head tail)
+                    (if (interpret head env)
+                        (if (null? tail)
+                            #t
+                            (shortcircuit-interpret (first tail) (rest tail)))
+                        #f))])
+                (shortcircuit-interpret (first exprs) (rest exprs)))]
+
         [(list 'or exprs ...)
             (letrec ([shortcircuit-interpret 
                 (lambda (head tail)
@@ -110,9 +129,11 @@
             ;(list params expr)]
         [(list 'quote a) a]
         [(list 'letrec val-exprs body ...)
-            (let ([ids (map (match-lambda [(list id val) id]) val-exprs)]
-                  [values (map (match-lambda [(list id val) val]) val-exprs)])
-                (let ([arguments (make-env ids (map (lambda (x) (interpret x env)) values) env)])
+            (let* ([ids (map (match-lambda [(list id val) id]) val-exprs)]
+                  [values (map (match-lambda [(list id val) val]) val-exprs)]
+                  [temp-env (make-env ids (map (lambda (x) 0) ids) env)])
+                
+                (let ([arguments (update-env ids (map (lambda (x) (interpret x temp-env)) values) temp-env)])
                     (foldl (lambda (x acc) (interpret x arguments)) #f body)))]
 
         [(list '!!local-or-string a) 
