@@ -12,6 +12,7 @@
     'if
     'or
     'and
+    'cond
     'set
     'define
     'lambda
@@ -59,10 +60,35 @@
                             #f
                             (shortcircuit-interpret (first tail) (rest tail)))))])
                 (shortcircuit-interpret (first exprs) (rest exprs)))]
-            
+
+        [(list 'cond tests ...)
+            (debug-printf "[interpret] cond tests: ~v~n" tests)
+            (letrec ([shortcircuit-interpret
+                (lambda (head tail)
+                    (match head
+                        [(list 'else body)
+                            (interpret body env)]
+                        [(list 'else body ...)
+                            (foldl (lambda (x _) (interpret x env)) #f body)]
+                        [(list test body)
+                            (if (interpret test env)
+                                (interpret body env)
+                                (if (null? tail)
+                                    (void)
+                                    (shortcircuit-interpret (first tail) (rest tail))))]
+                        [(list test body ...)
+                            (if (interpret test env)
+                                (foldl (lambda (x _) (interpret x env)) #f body)
+                                (if (null? tail)
+                                    (void)
+                                    (shortcircuit-interpret (first tail) (rest tail))))]
+                        [_ (error (format "cond test expects a list, but the test was ~v~n" head))]))])
+                (shortcircuit-interpret (first tests) (rest tests)))]
+
         [(list 'set! a b)
             (set-in-env! a (interpret b env) env)]
-        [(list 'define (cons id params) body ...)
+        [(list 'define (list id params) body ...)
+            (debug-printf "[interpret] define id: ~v params: ~v body: ~v~n" id params body)
             (when top-level? (hash-set! source-env id code))
             (let ([define-env (make-empty-env env)])
                 (hash-set! (first env) id (lambda args 
@@ -148,6 +174,7 @@
                                 (begin 
                                     (debug-printf "applying proc: ~v with b: ~v~n" proc b)
                                     (let ([args (map (lambda (x) (interpret x env)) b)])
+                                        (debug-printf "[interpret][apply] args: ~v~n" args)
                                         (apply proc args)))))
                         (error (format "error: proc ~v is undefined~n" a)))))]
         

@@ -98,8 +98,72 @@
             (check-equal? result 2 "result is not 2 ")))
 )
 
-(run-tests if-tests)
-(run-tests set-tests)
-(run-tests begin-tests)
-(run-tests proc-apply-tests)
-(run-tests let-tests)
+(define-test-suite cond-tests
+    (test-case 
+        "returns the result of the true condition"
+        (let* ([env (list (make-hash))]
+                [code '(cond 
+                    [#t 1]
+                    [#f 2])]
+                [result (interpret code env)])
+            (check-equal? result 1 "result is not 1")))
+
+    (test-case 
+        "looks for first true test, ignores rest"
+        (let* ([env (make-env 'x -1 '())]
+                [code '(cond
+                    [#f (set! x 0) #f]
+                    [#t (set! x 1) #t]
+                    [#t (set! x 2) #f])]
+                [result (interpret code env)])
+            (check-equal? (lookup 'x env) 1)))
+
+    (test-case 
+        "can handle exprs for test"
+        (let* ([env (list (make-hash))]
+                [code '(cond
+                    [(symbol? "a") 'symbol]
+                    [(string? "b") 'string])]
+                [result (interpret code env)])
+            (check-equal? result 'string "result is not 'string")))
+
+    (test-case
+        "can handle else"
+        (let* ([env (list (make-hash))]
+                [code '(cond
+                    [#f 'no]
+                    [else 'no 'yes])]
+                [result (interpret code env)])
+            (check-equal? result 'yes "result is not 'yes")))
+)
+
+(define-test-suite full-module-tests
+    (test-case 
+        "filesystem.rkt"
+        (let* ([env (list (make-hash))]
+                [source 
+                    '(define (can-execute path)
+                        (let ([filename 
+                                (cond 
+                                    [(symbol? path) (symbol->string path)]
+                                    [(string? path) path]
+                                )])
+                            (or (find-executable-path filename)
+                                (find-executable-path (format "~a.exe" filename)))))]
+                [code '(can-execute "ls")]
+                [result (interpret source env)]
+                [result (interpret code env)])
+            (check-equal? result #t "result is #f")))
+              
+            
+            
+)
+
+;(run-tests if-tests)
+;(run-tests set-tests)
+;(run-tests begin-tests)
+;(run-tests proc-apply-tests)
+;(run-tests let-tests)
+;(set-debug! #t)
+(run-tests cond-tests)
+;(run-tests full-module-tests)

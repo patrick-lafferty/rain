@@ -31,15 +31,17 @@
 (define setpgid (get-ffi-obj "setpgid" libc (_fun _int _int -> _int)))
 
 (define (source) 
-    (let ([input-file (open-input-file user-profile)])
-        (letrec ([read-all (lambda _
-            (let ([code (read input-file)])
-                (unless (eof-object? code)
-                    (writeln code)
-                    (interpret code (list profile-env) #t)
-                    (read-all))))])
-            (read-all)
-        )))
+    ;(let ([input-file (open-input-file user-profile)])
+    (with-input-from-file user-profile
+        (lambda () 
+            (letrec ([read-all (lambda _
+                (let ([code (read)]); input-file)])
+                    (unless (eof-object? code)
+                        ;(writeln code)
+                        (interpret code (list profile-env) #t)
+                        (read-all))))])
+                (read-all)
+            ))))
 
 
 (define shell% 
