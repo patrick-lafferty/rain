@@ -61,7 +61,7 @@
                 (shortcircuit-interpret (first exprs) (rest exprs)))]
             
         [(list 'set! a b)
-            (set-in-env! a b env)]
+            (set-in-env! a (interpret b env) env)]
         [(list 'define (cons id params) body ...)
             (when top-level? (hash-set! source-env id code))
             (let ([define-env (make-empty-env env)])

@@ -55,7 +55,7 @@
     (if (list? params)
         (let ([pairs (map cons params args)])
             (cons (make-hash pairs) parent))
-        (cons (make-hash (list (list params args))) parent)))
+        (cons (make-hash (list (cons params args))) parent)))
 
 (define (update-env params args parent)
     (if (list? params)
