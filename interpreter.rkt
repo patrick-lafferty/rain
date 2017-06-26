@@ -18,7 +18,9 @@
     'quote
     'let
     'let*
-    'letrec))
+    'letrec
+    'begin
+    ))
 
 (define (escape-local x env)
     (match x
@@ -115,28 +117,32 @@
                     (if local?
                         local?
                         (symbol->string a))))]
-
+        [(list 'begin exprs ...)
+            (debug-printf "[interpret] begin exprs: ~v~n" exprs)
+            (foldl (lambda (x _) (interpret x env)) #f exprs)]
         [(list (or (? symbol? a) (list '!!local-or-string a)) b ...) 
             (debug-printf "[interpret] (or (? symbol? a) (? list? a)): ~v~nb: ~a~n" a b)
             (if (member a interpreter-keywords)
                 (interpret (cons a b) env)
                 (let ([proc (interpret a env)]) 
                     (debug-printf "interpreted proc ~v~n" proc)
-                    (if (member proc interpreter-keywords)
-                        (interpret (cons proc b) env)
-                        (if (list? proc)
-                            (let ([params (first proc)]
-                                [body (rest proc)])
-                                (debug-printf "params: ~v~nbody: ~v~n" params body)
-                                (let ([arguments (make-env params (interpret b env) env)])
-                                    (debug-printf "arguments: ~v~n" arguments)
-                                    (map (lambda (x) (interpret x arguments)) body)))
+                    (if proc
+                        (if (member proc interpreter-keywords)
+                            (interpret (cons proc b) env)
+                            (if (list? proc)
+                                (let ([params (first proc)]
+                                    [body (rest proc)])
+                                    (debug-printf "params: ~v~nbody: ~v~n" params body)
+                                    (let ([arguments (make-env params (interpret b env) env)])
+                                        (debug-printf "arguments: ~v~n" arguments)
+                                        (map (lambda (x) (interpret x arguments)) body)))
 
-                            (begin 
-                                (debug-printf "applying proc: ~v with b: ~v~n" proc b)
-                                (let ([args (map (lambda (x) (interpret x env)) b)])
-                                    (apply proc args)))))))]
-
+                                (begin 
+                                    (debug-printf "applying proc: ~v with b: ~v~n" proc b)
+                                    (let ([args (map (lambda (x) (interpret x env)) b)])
+                                        (apply proc args)))))
+                        (error (format "error: proc ~v is undefined~n" a)))))]
+        
         [a (debug-printf "interpret symbol: ~v~n" a)
             (if (symbol? a)
                 (lookup a env)

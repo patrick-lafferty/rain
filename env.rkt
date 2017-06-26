@@ -21,7 +21,8 @@
     "profile.rkt"
     "debug_printf.rkt")
 
-(define shell-namespace #f)
+(define-namespace-anchor shell-namespace-anchor)
+(define shell-namespace (namespace-anchor->namespace shell-namespace-anchor))
 
 (define (set-shell-namespace! ns) (set! shell-namespace ns))
 

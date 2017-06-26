@@ -2,7 +2,7 @@
 
 (provide debug-printf set-debug!)
 
-(define debug? #t)
+(define debug? #f)
 
 (define (set-debug! debug) (set! debug? debug))
 
