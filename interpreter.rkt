@@ -77,13 +77,15 @@
             (when top-level? (hash-set! source-env id code))
             (hash-set! (first env) id (interpret expr env))]
         [(list 'lambda params body ...) 
-            (debug-printf "[interpret] lambda params:~v body:~v~N" params body)
+            (debug-printf "[interpret] lambda params:~v body:~v~n" params body)
             (let ([params 
                     (if (list? params) 
                         (map (lambda (x) (escape-local x env)) params)
                         (escape-local params env))])
-                (lambda args (let ([arguments (make-env params (interpret args env) env)])
-                    (foldl (lambda (x acc) (interpret x arguments)) #f body))))]
+                (lambda args
+                    (debug-printf "[lambda] args: ~v~n" args)
+                    (let ([arguments (make-env params (interpret args env) env)])
+                        (foldl (lambda (x acc) (interpret x arguments)) #f body))))]
         [(list 'quote a) 
             (debug-printf "[interpret] quote: ~v~n" a)
             a]
@@ -120,6 +122,12 @@
         [(list 'begin exprs ...)
             (debug-printf "[interpret] begin exprs: ~v~n" exprs)
             (foldl (lambda (x _) (interpret x env)) #f exprs)]
+        
+        [(list (list 'lambda params body ...) args ...)
+            (debug-printf "[interpret] lambda args: ~v~N" args)
+            (let ([fn (interpret (cons 'lambda (cons params body)) env)])
+                (apply fn args))]
+
         [(list (or (? symbol? a) (list '!!local-or-string a)) b ...) 
             (debug-printf "[interpret] (or (? symbol? a) (? list? a)): ~v~nb: ~a~n" a b)
             (if (member a interpreter-keywords)

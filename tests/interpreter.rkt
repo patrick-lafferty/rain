@@ -64,10 +64,42 @@
                     (set! l (cons 2 l))
                     (set! l (cons 3 l)))]
                    [result (interpret code env)])
-                (check-equal? (lookup 'l env) '(1 2 3) "l is not '(1 2 3)")))
+                (check-equal? (lookup 'l env) '(3 2 1) "l is not '(3 2 1)")))
+        (test-case 
+            "result is the result of the last expr"
+            (let* ([code '(begin (+ 1 2) (+ 2 3))]
+                    [result (interpret code env)])
+                (check-equal? result 5 "result is not 5")))
 ))
 
-        
+(define-test-suite proc-apply-tests
+    (test-case
+        "can apply a lambda"
+        (let* ([code '((lambda (x y) (+ x y)) 1 2)]
+                [result (interpret code (list (make-hash)))])
+            (check-equal? result 3 "result is not 3")))
+
+    (test-case
+        "can apply a defined proc"
+        (let* ([env (make-empty-env '())]
+                [definition '(define (f x) (+ x 2))]
+                [code '(f 1)])
+            (interpret definition env)
+            (let ([result (interpret code env)])
+                (check-equal? result 3 "result is not 3"))))
+)
+
+(define-test-suite let-tests
+    (test-case
+        "can bind an expr to an id"
+        (let* ([env (make-empty-env '())]
+                [code '(let ([x ((lambda (x) (add1 x)) 1)]) x)]
+                [result (interpret code env)])
+            (check-equal? result 2 "result is not 2 ")))
+)
+
 (run-tests if-tests)
 (run-tests set-tests)
 (run-tests begin-tests)
+(run-tests proc-apply-tests)
+(run-tests let-tests)
