@@ -23,6 +23,8 @@
                         arg
                         (list '!!local-or-string arg))]
                 [(list? arg) (map escape arg)]
+                [(number? arg) arg]
+                [(boolean? arg) arg]
                 [else (format "~a" arg)]))])
         (map escape args)))
 
