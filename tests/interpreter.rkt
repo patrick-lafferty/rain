@@ -163,9 +163,59 @@
                 [result (interpret source env)]
                 [result (interpret code env)])
             (check-equal? result #t "result is #f")))
-              
-            
-            
+)
+
+(define-test-suite guarded-tests
+    (test-case
+        "(constant) when shouldn't evaluate body"
+        (let* ([env (make-env 'x 0 '())]
+                [code '(when #f (set! x 1))])
+            (interpret code env)
+            (check-equal? (lookup 'x env) 0 "x is not 0")))
+    (test-case
+        "(expr) when shouldn't evaluate body"
+        (let* ([env (make-env 'x 0 '())]
+                [code '(when ((lambda (x) (> x 1)) 1) (set! x 1))])
+            (interpret code env)
+            (check-equal? (lookup 'x env) 0 "x is not 0")))
+    (test-case
+        "(constant) when should evaluate body"
+        (let* ([env (make-env 'x 0 '())]
+                [code '(when #t (set! x 1))])
+            (interpret code env)
+            (check-equal? (lookup 'x env) 1 "x is not 1")))
+    (test-case
+        "(expr) when should evaluate body"
+        (let* ([env (make-env 'x 0 '())]
+                [code '(when ((lambda (x) (> x 1)) 2) (set! x 1))])
+            (interpret code env)
+            (check-equal? (lookup 'x env) 1 "x is not 1")))
+
+    (test-case
+        "(constant) unless shouldn't evaluate body"
+        (let* ([env (make-env 'x 0 '())]
+                [code '(unless #t (set! x 1))])
+            (interpret code env)
+            (check-equal? (lookup 'x env) 0 "x is not 0")))
+    (test-case
+        "(expr) unless shouldn't evaluate body"
+        (let* ([env (make-env 'x 0 '())]
+                [code '(unless ((lambda (x) (> x 1)) 2) (set! x 1))])
+            (interpret code env)
+            (check-equal? (lookup 'x env) 0 "x is not 0")))
+    (test-case
+        "(constant) unless should evaluate body"
+        (let* ([env (make-env 'x 0 '())]
+                [code '(unless #f (set! x 1))])
+            (interpret code env)
+            (check-equal? (lookup 'x env) 1 "x is not 1")))
+    (test-case
+        "(expr) unless should evaluate body"
+        (let* ([env (make-env 'x 0 '())]
+                [code '(unless ((lambda (x) (> x 1)) 1) (set! x 1))])
+            (interpret code env)
+            (check-equal? (lookup 'x env) 1 "x is not 1")))
+
 )
 
 (run-tests if-tests)
@@ -173,6 +223,7 @@
 (run-tests begin-tests)
 (run-tests proc-apply-tests)
 (run-tests let-tests)
-;(set-debug! #t)
 (run-tests cond-tests)
 (run-tests full-module-tests)
+;(set-debug! #t)
+(run-tests guarded-tests)

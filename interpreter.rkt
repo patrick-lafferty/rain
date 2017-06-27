@@ -21,6 +21,8 @@
     'let*
     'letrec
     'begin
+    'when
+    'unless
     ))
 
 (define (escape-local x env)
@@ -86,7 +88,16 @@
                                     (shortcircuit-interpret (first tail) (rest tail))))]
                         [_ (error (format "cond test expects a list, but the test was ~v~n" head))]))])
                 (shortcircuit-interpret (first tests) (rest tests)))]
-
+        [(list 'when test body ...)
+            (debug-printf "[interpret] when test: ~v body: ~v~n" test body)
+            (if (interpret test env)
+                (foldl (lambda (x _) (interpret x env)) #f body)
+                (void))]
+        [(list 'unless test body ...)
+            (debug-printf "[interpret] unless test: ~v body: ~v~n" test body)
+            (if (not (interpret test env))
+                (foldl (lambda (x _) (interpret x env)) #f body)
+                (void))]
         [(list 'set! a b)
             (set-in-env! a (interpret b env) env)]
         [(list 'define (list id param) body ...)

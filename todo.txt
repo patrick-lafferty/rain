@@ -1,8 +1,8 @@
 general:
 -migrate to typed racket
--implement unit testing
+-IN PROGRESS implement unit testing
 -use more functional code where appropriate
--document the code
+-IN PROGRESS document the code
 
 jobs:
 -show list of jobs
@@ -25,3 +25,6 @@ command line:
 
 repl:
 -IN PROGRESS replace eval with own interpreter
+
+interpreter:
+-DONE when, unless
