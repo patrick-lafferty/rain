@@ -65,12 +65,14 @@
             (debug-printf "[interpret] cond tests: ~v~n" tests)
             (letrec ([shortcircuit-interpret
                 (lambda (head tail)
+                    (debug-printf "[interpret][cond] head: ~v tail: ~v~n" head tail)
                     (match head
                         [(list 'else body)
                             (interpret body env)]
                         [(list 'else body ...)
                             (foldl (lambda (x _) (interpret x env)) #f body)]
                         [(list test body)
+                            (debug-printf "[interpret][cond] test: ~v body: ~v~n" test body)    
                             (if (interpret test env)
                                 (interpret body env)
                                 (if (null? tail)
@@ -87,11 +89,18 @@
 
         [(list 'set! a b)
             (set-in-env! a (interpret b env) env)]
-        [(list 'define (list id params) body ...)
+        [(list 'define (list id param) body ...)
+            (debug-printf "[interpret] define id: ~v param: ~v body: ~v~n" id param body)
+            (when top-level? (hash-set! source-env id code))
+            (let ([define-env (make-empty-env env)])
+                (hash-set! (first env) id (lambda (arg) 
+                    (let ([argument (make-env param (interpret arg define-env) env)])
+                        (foldl (lambda (x acc) (interpret x argument)) #f body)))))]
+        [(list 'define (list id params ...) body ...)
             (debug-printf "[interpret] define id: ~v params: ~v body: ~v~n" id params body)
             (when top-level? (hash-set! source-env id code))
             (let ([define-env (make-empty-env env)])
-                (hash-set! (first env) id (lambda args 
+                (hash-set! (first env) id (lambda args
                     (let ([arguments (make-env params (interpret args define-env) env)])
                         (foldl (lambda (x acc) (interpret x arguments)) #f body)))))]
         [(list 'define (list id) body ...)
@@ -119,6 +128,7 @@
             (debug-printf "[interpret] let val-exprs: ~v body: ~v~n" val-exprs body)
             (let* ([ids (map (match-lambda [(list id val) (escape-local id env)]) val-exprs)]
                    [values (map (match-lambda [(list id val) (interpret val env)]) val-exprs)])
+                   (debug-printf "[interpret][let] ids: ~v values: ~v~n" ids values)
                    (let ([arguments (make-env ids values env)])
                     (foldl (lambda (x acc) (interpret x arguments)) #f body)))]
         [(list 'let* val-exprs body ...)
@@ -153,9 +163,33 @@
             (debug-printf "[interpret] lambda args: ~v~N" args)
             (let ([fn (interpret (cons 'lambda (cons params body)) env)])
                 (apply fn args))]
+        
+        [(list (or (? symbol? a) (list '!!local-or-string a)) b)
+            (debug-printf "[interpret] proc-apply a: ~v b:~v~n" a b)
+            (if (member a interpreter-keywords)
+                (interpret (cons a b) env)
+                (let ([proc (interpret a env)])
+                    (if proc
+                        (if (member proc interpreter-keywords)
+                            (interpret (cons proc b) env)
+                            (if (list? proc)
+                                (let ([params (first proc)]
+                                    [body (rest proc)])
+                                    (debug-printf "params: ~v~nbody: ~v~n" params body)
+                                    (let ([arguments (make-env params (interpret b env) env)])
+                                        (debug-printf "arguments: ~v~n" arguments)
+                                        (map (lambda (x) (interpret x arguments)) body)))
+
+                                (begin 
+                                    (debug-printf "applying proc: ~v with b: ~v~n" proc b)
+                                    (let ([arg (interpret b env)])
+                                        (debug-printf "[interpret][apply] arg: ~v~n" arg)
+                                        (proc arg)))))
+                        (error (format "error: proc ~v is undefined~n" a)))))]
+
 
         [(list (or (? symbol? a) (list '!!local-or-string a)) b ...) 
-            (debug-printf "[interpret] (or (? symbol? a) (? list? a)): ~v~nb: ~a~n" a b)
+            (debug-printf "[interpret] proc-apply-list a: ~v b: ~v~n" a b)
             (if (member a interpreter-keywords)
                 (interpret (cons a b) env)
                 (let ([proc (interpret a env)]) 

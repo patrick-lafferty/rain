@@ -87,6 +87,14 @@
             (interpret definition env)
             (let ([result (interpret code env)])
                 (check-equal? result 3 "result is not 3"))))
+    (test-case
+        "can apply a defined proc with multiple args"
+        (let* ([env (make-empty-env '())]
+                [definition '(define (f a b c) (+ a b c))]
+                [code '(f 1 2 3)])
+            (interpret definition env)
+            (let ([result (interpret code env)])
+                (check-equal? result 6 "result is not 6"))))
 )
 
 (define-test-suite let-tests
@@ -147,6 +155,7 @@
                                 (cond 
                                     [(symbol? path) (symbol->string path)]
                                     [(string? path) path]
+                                    [else (error "this should be a path")]
                                 )])
                             (or (find-executable-path filename)
                                 (find-executable-path (format "~a.exe" filename)))))]
@@ -159,11 +168,11 @@
             
 )
 
-;(run-tests if-tests)
-;(run-tests set-tests)
-;(run-tests begin-tests)
-;(run-tests proc-apply-tests)
-;(run-tests let-tests)
+(run-tests if-tests)
+(run-tests set-tests)
+(run-tests begin-tests)
+(run-tests proc-apply-tests)
+(run-tests let-tests)
 ;(set-debug! #t)
 (run-tests cond-tests)
-;(run-tests full-module-tests)
+(run-tests full-module-tests)
