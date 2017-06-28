@@ -33,6 +33,7 @@ SOFTWARE.
 (require ffi/unsafe/define)
 
 (define-ffi-definer define-libc (ffi-lib #f))
+(define-ffi-definer define-libexplain (ffi-lib "libexplain" '(#f)))
 (define-ffi-definer define-libsignals (ffi-lib "libsignals" '(#f)))
 
 (define-libsignals childStopped (_fun _int -> _int))
@@ -44,6 +45,11 @@ SOFTWARE.
 (define-libc waitpid (_fun _int (status : (_ptr o _int)) _int 
     -> (r : _int) 
     -> (values status r)))
+(define-libexplain explain_waitpid_or_die (_fun _int (status : (_ptr o _int)) _int 
+    -> (r : _int) 
+    -> (values status r)))
+(define-libexplain explain_waitpid (_fun _int (_ptr i _int) _int 
+    -> _path))
 (define-libc kill (_fun _int _int -> _int))
 
 (define-libc getpid (_fun -> _int))
@@ -89,12 +95,23 @@ SOFTWARE.
         (define/public (get-stdout) stdout)
         (define/public (get-stderr) stderr)
 
+        (define/public (set-pipes in out err)
+            (redirect-in in)
+            (redirect-out out)
+            (redirect-err err))
+
+        (define sub-process #f)
+
+        (define/public (set-proc proc) (set! sub-process proc))
+        (define/public (get-proc) sub-process)
+
         (define/public (redirect-in in) (set! stdin in))
         (define/public (redirect-out out) (set! stdout out))
         (define/public (redirect-err err) (set! stderr err))
 
         (define/public (become-foreground-process terminal)
             (when can-continue?
+                (displayln "[bfp] can-continue")
                 (kill pid SIGCONT)
                 (send termios restore-tmodes terminal))
 
@@ -118,10 +135,10 @@ SOFTWARE.
         (define/public (get-argv) argv)
     ))
 
-(define (set-job-pgid job pgid)
-    (when (= 0 (send job get-pgid))
-        (send job set-pgid pgid) 
-        (setpgid pgid pgid)))
+(define (set-job-pgid job pid pgid)
+    (when (= 0 pgid);(send job get-pgid))
+        (send job set-pgid pid) 
+        (setpgid pid pid)))
 
 (define WAIT_ANY -1)
 (define WUNTRACED 2)
@@ -137,7 +154,7 @@ SOFTWARE.
             (match stoppedJobs
                 [(cons head tail) 
                     (set! stoppedJobs tail)
-                    (put-job-in-foreground head (send head get-pid))]
+                    (put-job-in-foreground head (send head get-pid) (send head get-pgid))]
                 [_ (displayln "no jobs")]))
 
         (define/public (launch-process job fd)
@@ -186,16 +203,38 @@ SOFTWARE.
             (send job stop (send shell get-terminal))
             (exit 1))
 
-        (define/public (put-job-in-foreground job pid)
-            (set-job-pgid job pid)
-            (send job set-pid pid)
+        (define/public (launch-subprocess job in out err pgid)
+            
+            (printf "[launch-process] about to subprocess~n")
+            (let* ([argv (send job get-argv)]
+                    [path (find-executable-path (first argv))]
+                    [args (map (lambda (x) (if x x '())) (rest argv))]
+                    [sp-args (flatten (list out in err path args))])
+
+                (let-values ([(proc out in err) (apply subprocess sp-args)])
+                    (set-job-pgid job (subprocess-pid proc) pgid)
+                    (send job set-pid (subprocess-pid proc))
+                    (send job become-foreground-process (send shell get-terminal))
+                    (send job set-pipes in out err)
+                    (send job set-proc proc))))
+
+        (define/public (put-job-in-foreground job pid pgid)
+            ;(set-job-pgid job pid pgid)
+            ;(send job set-pid pid)
 
             (define terminal (send shell get-terminal))
             (send job become-foreground-process terminal)
             
             ;TODO: change waiting to wait on all from process group
-            (define-values (status result) (waitpid WAIT_ANY WUNTRACED))
-            (printf "waitpid status: ~v result: ~v (shouldnt happen)~n" status result)
+            (printf "[pgif] waitpid id: ~v~n" (* -1 pgid))
+            (define-values (status result) (waitpid -1 WUNTRACED)) ;WAIT_ANY WUNTRACED))
+            ;(subprocess-wait (send job get-proc))
+            ;(define status 1)
+            ;(define result 1)
+            (printf "[pgif] status: ~v result: ~v~n" status result)
+            (printf "[pgif] explain: ~v~n" (explain_waitpid -1 status WUNTRACED))
+            (displayln "done")
+            (displayln "")
 
             (cond
                 [(= 1 (childStopped status)) (set! stoppedJobs (cons job stoppedJobs))]
@@ -220,7 +259,36 @@ SOFTWARE.
                     ))
             ))
 
-        (define/public (launch-group jobs) 
+        (define/public (run-job-subprocess job in out err pgid)
+            ;(let-values ([(proc stdout stdin stderr) (subprocess #f #f #f (find-executable-path ))]))
+            (let ([proc (launch-subprocess job in out err pgid)])
+                (put-job-in-foreground job (subprocess-pid (send job get-proc)) (send job get-pgid))))
+
+        (define/public (launch-group jobs)
+            (subprocess-group-enabled #f)
+
+            (define (helper prev current in out err first? pgid)
+                (subprocess-group-enabled first?) 
+
+                (match current
+                    [(cons a '())
+                        (run-job-subprocess a in out err pgid)]
+                    [(cons a b)
+                            (run-job-subprocess a in out err pgid)
+                            (let ([next-in (send a get-stdout)]
+                                    [next-err (send a get-stderr)]
+                                    [pgid (send a get-pgid)])
+                                (helper a b next-in #f next-err #f pgid))]))
+#|
+first job: use stdin, create out, create err
+next job: use prev out as in, create out, create err
+|#
+            (if (= 1 (length jobs))
+                (helper '() jobs (current-input-port) (current-output-port) (current-error-port) #t 0)
+                (helper '() jobs (current-input-port) #f #f #t 0)))
+
+
+        (define/public (launch-group-old jobs) 
             (printf "[launch-group] jobs: ~v~n" jobs)
             (let ([pipes 
                 (map 
