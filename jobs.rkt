@@ -141,6 +141,7 @@ SOFTWARE.
                 [_ (displayln "no jobs")]))
 
         (define/public (launch-process job fd)
+            (printf "[launch-process] start")
             (define pid (getpid))
             (set-job-pgid job pid)
 
@@ -175,7 +176,8 @@ SOFTWARE.
                         (dup2 err 2)
                         (close err)))
                   )
-
+            
+            (printf "[launch-process] about to execvp")
             (send job become-foreground-process (send shell get-terminal))
             (let ([argv (send job get-argv)])
                 (let ([result (execvp (first argv) argv)])
@@ -193,7 +195,7 @@ SOFTWARE.
             
             ;TODO: change waiting to wait on all from process group
             (define-values (status result) (waitpid WAIT_ANY WUNTRACED))
-            (displayln "")
+            (printf "waitpid status: ~v result: ~v (shouldnt happen)~n" status result)
 
             (cond
                 [(= 1 (childStopped status)) (set! stoppedJobs (cons job stoppedJobs))]
@@ -204,17 +206,22 @@ SOFTWARE.
             (void))
 
         (define/public (run-job job fd-in fd-out)
+            (printf "[run-job] job: ~v fd-in: ~v fd-out: ~v~n" job fd-in fd-out)
             (let ([pid (fork)])
+                (printf "[run-job] after fork")
                 (if (eq? pid 0)
                     (launch-process job (list fd-in fd-out))
                     (begin 
+                        (printf "[run-job] parent")
                         (put-job-in-foreground job pid)
+                        (printf "[run-job] parent after put-job-in-foreground")
                         (when fd-in (close fd-in))
                         (when fd-out (close fd-out))
                     ))
             ))
 
         (define/public (launch-group jobs) 
+            (printf "[launch-group] jobs: ~v~n" jobs)
             (let ([pipes 
                 (map 
                     (lambda (x) (let-values ([(fd result) (pipe)]) fd)) 
@@ -223,8 +230,10 @@ SOFTWARE.
                     (lambda (prev current fd-in fd-out)
                         (match current
                             [(cons a '()) 
+                                (printf "[launch-group] cons a: ~v~n" a)
                                 (run-job a fd-in #f)]
                             [(cons a b) 
+                                (printf "[launch-group] cons a: ~v b: ~v~n" a b)
                                 (let* ([fd (first fd-out)]
                                         [in (first fd)]
                                         [out (second fd)])

@@ -19,6 +19,43 @@ SOFTWARE.
 |#
 #lang scribble/manual
 
-@title{Shell}
+@title[#:tag "shell" #:version ""]{Shell}
 
-Shell
+@section{Running programs}
+
+@section{Piping}
+
+Piping takes the output from one program and uses it as the input for the next
+without having to create a temporary file to store the intermediate results. So
+instead of having to do:
+
+@nested[#:style 'code-inset]{{ls > ls_results}
+
+    {grep rkt ls_results > grep_results}
+
+    {sort grep_results}
+}
+
+you can do:
+
+@nested[#:style 'code-inset]{{ls | grep rkt | sort}}
+
+@section{Redirection}
+
+Programs have three standard streams, input (stdin), output (stdout) and error (stderr).
+Normally when you run a program in the terminal stdin comes from the keyboard, and
+stdout and stderr get displayed on the screen. With redirection you can change that,
+for instance you can redirect stdin to read from a file, or stdout to output to a file.
+The second example is useful when you want to save the resulting output of a program
+to read again later. To redirectin Lush:
+changed 
+@itemlist[@item{@exec{ < in-file } redirects stdin}
+    @item{@exec{ > out-file } redirects stdout}
+    @item{@exec{ ^ err-file } redirects stderr}
+]
+
+Examples:
+
+@nested[#:style 'code-inset]{{ls > results.txt}}
+@nested[#:style 'code-inset]{{cat < results.txt | sort -r > sorted.txt}}
+@nested[#:style 'code-inset]{{wget invalid://add.re/ss ^ err.txt}}

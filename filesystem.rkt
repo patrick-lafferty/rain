@@ -21,6 +21,56 @@ SOFTWARE.
 
 (require racket/system)
 
+(provide 
+    can-execute
+    watch
+    stop-watching
+    is-watching?)
+
+(require ffi/unsafe)
+(require ffi/unsafe/define)
+(require racket/place)
+
+(define-ffi-definer define-libnotify (ffi-lib "notify" '(#f)))
+
+(define-libnotify watch_path (_fun _string -> _int))
+(define-libnotify watch_all (_fun (length : (_ptr o _int))
+    -> (buffer : (_cpointer 'buffer))
+    -> (values length buffer)))
+
+#|(define _cb (_cprocedure
+    (list _int)
+    _int
+))|#
+
+;(define-libnotify watch_all (_fun _cb -> _int))
+
+;(define (watch func) (watch_all func))
+
+(define (watcher ch)
+    (let-values ([(length buffer) (watch_all)])
+        (printf "length: ~v buffer: ~v~n" length buffer)
+        (when (> length 0)
+            (for ([i length])
+                (place-channel-put ch (ptr-ref buffer _int i))))
+
+        (free buffer))
+    (watcher ch))
+
+(define (watch-th ch fn)
+    (let ([r (sync ch)])
+        (fn r))
+    (watch-th ch fn))
+
+(define (watch path func) 
+
+    (watch_path "/home/pat/projects/lush/docs")
+
+    (let ([p (place ch (watcher ch))])
+        (thread
+            (lambda () (watch-th p func)))))
+                
+
 (define (can-execute path)
     (let ([filename 
             (cond 
@@ -30,4 +80,36 @@ SOFTWARE.
         (or (find-executable-path filename)
             (find-executable-path (format "~a.exe" filename)))))
 
-(provide can-execute)
+#|(define (watcher path) 
+    (filesystem-change-evt? 
+        (sync 
+            (choice-evt 
+                (thread-receive-evt) 
+                (filesystem-change-evt path (lambda () #f))))))
+|#
+(define watchers (make-hash))
+
+#|(define (watch path func)
+    (unless (hash-has-key? watchers path)
+        (printf "watching ~v...~n" path)
+        (let ([watcher-thread
+                (thread
+                    (lambda ()
+                        (letrec ([f (lambda () 
+                            (if (watcher path) 
+                                (begin
+                                    (displayln "changed") 
+                                    (func)
+                                    (f))
+                                (displayln "thread-receive-evt")))])
+                            (f))
+                        (displayln "done")
+                        ))])
+            (hash-set! watchers path watcher-thread))))|#
+
+(define (stop-watching path)
+    (when (hash-has-key? watchers path)
+        (thread-send (hash-ref watchers path) 1)
+        (hash-remove! watchers path)))
+
+(define (is-watching? path) (hash-has-key? watchers path))
