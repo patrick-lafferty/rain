@@ -143,6 +143,9 @@ SOFTWARE.
 (define WAIT_ANY -1)
 (define WUNTRACED 2)
 
+;(define is-in-thread? (make-parameter #f))
+(require "job-parameters.rkt")
+
 (define launcher%
     (class object%
         (super-new)
@@ -214,7 +217,8 @@ SOFTWARE.
                 (let-values ([(proc out in err) (apply subprocess sp-args)])
                     (set-job-pgid job (subprocess-pid proc) pgid)
                     (send job set-pid (subprocess-pid proc))
-                    (send job become-foreground-process (send shell get-terminal))
+                    (unless (is-in-thread?)
+                        (send job become-foreground-process (send shell get-terminal)))
                     (send job set-pipes in out err)
                     (send job set-proc proc))))
 
@@ -231,9 +235,9 @@ SOFTWARE.
             ;(subprocess-wait (send job get-proc))
             ;(define status 1)
             ;(define result 1)
-            (printf "[pgif] status: ~v result: ~v~n" status result)
-            (printf "[pgif] explain: ~v~n" (explain_waitpid -1 status WUNTRACED))
-            (displayln "done")
+            ;(printf "[pgif] status: ~v result: ~v~n" status result)
+            ;(printf "[pgif] explain: ~v~n" (explain_waitpid -1 status WUNTRACED))
+            ;(displayln "done")
             (displayln "")
 
             (cond
@@ -262,30 +266,46 @@ SOFTWARE.
         (define/public (run-job-subprocess job in out err pgid)
             ;(let-values ([(proc stdout stdin stderr) (subprocess #f #f #f (find-executable-path ))]))
             (let ([proc (launch-subprocess job in out err pgid)])
-                (put-job-in-foreground job (subprocess-pid (send job get-proc)) (send job get-pgid))))
+                (printf "[rjs] is-in-thread? ~v~n" (is-in-thread?))
+                (unless (is-in-thread?)
+                    (put-job-in-foreground job (subprocess-pid (send job get-proc)) (send job get-pgid)))))
 
         (define/public (launch-group jobs)
             (subprocess-group-enabled #f)
+;TODO: remember to close all opened ports
+            (define stdin 
+                (if (is-in-thread?)
+                    #f
+                    (let ([job-in (send (first jobs) get-stdin)])
+                        (if (non-empty-string? job-in)
+                            (open-input-file job-in)
+                            (current-input-port)))))
+            
+            (define stdout
+                (if (is-in-thread?)
+                    #f
+                    (let ([job-out (send (last jobs) get-stdout)])
+                        (if (non-empty-string? job-out)
+                            (open-output-file job-out)
+                            (current-output-port)))))
 
             (define (helper prev current in out err first? pgid)
                 (subprocess-group-enabled first?) 
 
                 (match current
                     [(cons a '())
-                        (run-job-subprocess a in out err pgid)]
+                        (run-job-subprocess a in stdout err pgid)]
                     [(cons a b)
                             (run-job-subprocess a in out err pgid)
                             (let ([next-in (send a get-stdout)]
                                     [next-err (send a get-stderr)]
                                     [pgid (send a get-pgid)])
-                                (helper a b next-in #f next-err #f pgid))]))
-#|
-first job: use stdin, create out, create err
-next job: use prev out as in, create out, create err
-|#
-            (if (= 1 (length jobs))
-                (helper '() jobs (current-input-port) (current-output-port) (current-error-port) #t 0)
-                (helper '() jobs (current-input-port) #f #f #t 0)))
+                                (helper a b next-in #f #f #f pgid))]))
+
+            (helper '() jobs stdin stdout #f #t 0))
+            ;(if (= 1 (length jobs))
+            ;    (helper '() jobs stdin (current-output-port) (current-error-port) #t 0)
+            ;    (helper '() jobs stdin #f #f #t 0)))
 
 
         (define/public (launch-group-old jobs) 
