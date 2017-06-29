@@ -31,12 +31,10 @@ SOFTWARE.
 (require ffi/unsafe/define)
 (require racket/place)
 
-(define-ffi-definer define-libnotify (ffi-lib "notify" '(#f)))
+(define-ffi-definer define-libnotify (ffi-lib "libnotify" '(#f)))
 
 (define-libnotify watch_path (_fun _string -> _int))
-(define-libnotify watch_all (_fun (length : (_ptr o _int))
-    -> (buffer : (_cpointer 'buffer))
-    -> (values length buffer)))
+
 
 #|(define _cb (_cprocedure
     (list _int)
@@ -47,28 +45,21 @@ SOFTWARE.
 
 ;(define (watch func) (watch_all func))
 
-(define (watcher ch)
-    (let-values ([(length buffer) (watch_all)])
-        (printf "length: ~v buffer: ~v~n" length buffer)
-        (when (> length 0)
-            (for ([i length])
-                (place-channel-put ch (ptr-ref buffer _int i))))
-
-        (free buffer))
-    (watcher ch))
+(require "job-parameters.rkt")
 
 (define (watch-th ch fn)
     (let ([r (sync ch)])
-        (fn r))
+        (parameterize ([is-in-thread? #t])
+            (fn r)))
     (watch-th ch fn))
 
 (define (watch path func) 
 
     (watch_path "/home/pat/projects/lush/docs")
 
-    (let ([p (place ch (watcher ch))])
-        (thread
-            (lambda () (watch-th p func)))))
+    ;(let ([p (place ch (watcher ch))])
+    (let ([p (dynamic-place "filesystem-watcher-place.rkt" 'watcher)])
+        (thread (lambda () (watch-th p func)))))
                 
 
 (define (can-execute path)

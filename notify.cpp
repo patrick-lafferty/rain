@@ -5,6 +5,9 @@
 #include <vector>
 #include <unistd.h>
 #include <iostream>
+#include <sys/stat.h>
+
+//g++ -shared -o libnotify.so -fPIC notify.cpp -std=c++11
 
 int inotify_file_descriptor {-1};
 //int event_file_descriptor {-1};
@@ -17,7 +20,7 @@ int* read_events(int* lengthh)
     int max_events = 10;
     int buffer_size = event_size * max_events;
     //char buffer[buffer_size];
-    std::vector<char> buffer(buffer_size);
+    std::vector<unsigned char> buffer(buffer_size);
 
     int length = read(inotify_file_descriptor, buffer.data(), buffer_size);
 
@@ -42,8 +45,20 @@ int* read_events(int* lengthh)
             }
             else if (event->mask & IN_MODIFY && !(event->mask & IN_ISDIR))
             {
-        wds.push_back(event->wd);
-                std::cout << "modify " << event->name << std::endl;
+                struct stat s;
+                std::string path {"/home/pat/projects/lush/docs/"};
+                path += event->name;
+                if (stat(path.c_str(), &s) == 0 && !S_ISDIR(s.st_mode)) 
+                {
+                    if (event->mask & IN_ISDIR)
+                    {
+                        std::cout << event->name << " is a dir" << std::endl;
+                    }
+
+                    wds.push_back(event->wd);
+
+                    std::cout << "modify " << event->name << std::endl;
+                }
             }
         }
 
@@ -55,48 +70,6 @@ int* read_events(int* lengthh)
 
     *lengthh = wds.size();
     return outbuffer;
-}
-
-typedef int (*callback)(int);
-
-extern "C" int watch_all3(callback cb)
-{
-    int NAME_MAX = 255;
-    int event_size = sizeof(inotify_event) + NAME_MAX + 1;
-    int max_events = 10;
-    int buffer_size = event_size * max_events;
-    std::vector<char> buffer(buffer_size);
-
-    int length = read(inotify_file_descriptor, buffer.data(), buffer_size);
-
-    int i = 0;
-    std::vector<int> wds;
-
-    while (i < length) 
-    {
-        inotify_event* event = reinterpret_cast<inotify_event*>(&buffer[i]);
-
-        if (event->len)
-        {
-            if (event->mask & IN_CREATE)
-            {
-                (*cb)(event->wd);
-                std::cout << "created " << event->name << std::endl;
-            }
-            else if (event->mask & IN_DELETE)
-            {
-                (*cb)(event->wd);
-                std::cout << "delete " << event->name << std::endl;
-            }
-            else if (event->mask & IN_MODIFY && !(event->mask & IN_ISDIR))
-            {
-                (*cb)(event->wd);
-                std::cout << "modify " << event->name << std::endl;
-            }
-        }
-
-        i += event_size + event->len;
-    }
 }
 
 //extern "C" int watch_all(int* wd_buffer)
