@@ -1,22 +1,3 @@
-#|
-MIT License
-Copyright (c) 2017 Patrick Lafferty
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-|#
 #lang racket/base
 
 (require racket/match)
@@ -25,9 +6,9 @@ SOFTWARE.
 
 ;Basic shell that uses Racket as its scripting language
 
-(require "shell.rkt")
+(require racket/place)
 
-#|(define prompt-character 
+(define prompt-character 
     (match (system-type 'os)
         ['unix "λ "]
         ['windows "> "]
@@ -139,15 +120,15 @@ SOFTWARE.
 
     (let ([str (if (string? s) (string->list s) s)])
         (helper str '())))
-|#
+
 (require "sh-lang.rkt")
 
-#|(define (input-loop [show-prompt? #t])
+(define (input-loop channel [show-prompt? #t])
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])
     (let ([c (getchar)])
         (match c
             [4 (send commandline clear)]
-            [9 (input-loop show-prompt?)]
+            [9 (input-loop channel show-prompt?)]
             [10 (displayln "")   
                 (set! up-counter 0)
 
@@ -156,85 +137,36 @@ SOFTWARE.
                         (if (balanced line)
                             (begin 
                                 (send history add line)
-                                (let ([code (read (open-input-string line))])                     
+                                #|(let ([code (read (open-input-string line))])                     
                                     (cond
                                         [(list? code) (exec code)]
                                         [(symbol? code) (handle-symbol code)]
                                         [ else (printf "unknown: ~a~n" code)]))
+                                        |#
+                                (place-channel-put channel line)
                                 (send commandline clear))
                             (begin 
                                 (send commandline store)
                                 (send commandline clear-single)
                                 (refresh-line #f)
-                                (input-loop #f))))
+                                (input-loop channel #f))))
                     (when (send commandline is-in-multiline?)
                         (refresh-line #f)
-                        (input-loop #f)))]
-            [27 (handle-escape-sequence) (input-loop show-prompt?)]
-            [127 (send commandline backspace) (refresh-line show-prompt?) (input-loop show-prompt?)]
+                        (input-loop channel #f)))]
+            [27 (handle-escape-sequence) (input-loop channel show-prompt?)]
+            [127 (send commandline backspace) (refresh-line show-prompt?) (input-loop channel show-prompt?)]
             [(? negative?) (displayln "eof?")]
             [_ 
                 (send commandline add-char (integer->char c))
                 (refresh-line show-prompt?)
-                (input-loop show-prompt?)]))))
+                (input-loop channel show-prompt?)]))))
 
-(require racket/port)
-#|(define stdout (current-output-port))
-(define-values (in out) (make-pipe))
-(current-output-port out)
-(thread (lambda () (copy-port in stdout)))
-|#
-(file-stream-buffer-mode (current-output-port) 'none)
-(define (repl)
-    (displayln "repl")
+(provide repl)
+
+(define (repl channel)
     (with-handlers
         ([exn:fail? (lambda (e) (displayln e))])
         (refresh-line)
         (flush-output)
-        (input-loop)
-        (repl)))
-
-#|(repl)
-|#
-(define in (current-input-port))
-(define out (current-output-port))
-(define err (current-error-port))
-
-(define (update-in in i)
-    (displayln "update-in")
-    (copy-port in i)
-    (update-in in i))
-
-(define (update-out o out)
-    (displayln "update-out")
-    (let ([oo (open-output-bytes)])
-        (copy-port o oo)
-        (writeln (get-output-bytes oo))
-        (flush-output))
-    (update-out o out))
-|#
-(require racket/place)
-#|(define (doit)
-    (let-values ([(p i o e) (place* ch (repl))])
-            (displayln "after place*")
-            (thread (lambda () (update-in in i)))
-            (thread (lambda () (update-out o out)))
-            (place-wait p)))
-
-(doit)|#
-
-(define (input-loop channel)
-    (let ([line (place-channel-get channel)])
-        (let ([code (read (open-input-string line))])                     
-            (cond
-                [(list? code) (exec code)]
-                [(symbol? code) (handle-symbol code)]
-                [ else (printf "unknown: ~a~n" code)])))
-    (input-loop channel))
-
-(define (doit)
-    (let ([p (dynamic-place "place.rkt" 'place-main)])
-        (input-loop p)))
-        ;(place-wait p)))
-
-(doit)
+        (input-loop channel)
+        (repl channel)))
