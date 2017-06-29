@@ -6,12 +6,14 @@
 #include <unistd.h>
 #include <iostream>
 #include <sys/stat.h>
+#include <map>
 
 //g++ -shared -o libnotify.so -fPIC notify.cpp -std=c++11
 
 int inotify_file_descriptor {-1};
-//int event_file_descriptor {-1};
 int epoll {-1};
+
+std::map<int, std::string> watchers;
 
 int* read_events(int* lengthh)
 {
@@ -19,7 +21,6 @@ int* read_events(int* lengthh)
     int event_size = sizeof(inotify_event) + NAME_MAX + 1;
     int max_events = 10;
     int buffer_size = event_size * max_events;
-    //char buffer[buffer_size];
     std::vector<unsigned char> buffer(buffer_size);
 
     int length = read(inotify_file_descriptor, buffer.data(), buffer_size);
@@ -46,8 +47,9 @@ int* read_events(int* lengthh)
             else if (event->mask & IN_MODIFY && !(event->mask & IN_ISDIR))
             {
                 struct stat s;
-                std::string path {"/home/pat/projects/lush/docs/"};
-                path += event->name;
+                std::string path = watchers[event->wd];//watch_path};
+                path += std::string{"/"} + event->name;
+                std::cout << "path: " << path << std::endl;
                 if (stat(path.c_str(), &s) == 0 && !S_ISDIR(s.st_mode)) 
                 {
                     if (event->mask & IN_ISDIR)
@@ -103,6 +105,25 @@ extern "C" int* watch_all(int* length)
     return read_events(length); 
 }
 
+extern "C" int stop_watching_path(int watch_descriptor)
+{
+    auto it = watchers.find(watch_descriptor);
+
+    if (it != end(watchers))
+    {
+        watchers.erase(it);
+    }
+
+    return inotify_rm_watch(inotify_file_descriptor, watch_descriptor);
+}
+
+extern "C" int stop_watching()
+{
+    close(inotify_file_descriptor);
+    inotify_file_descriptor = -1;
+    return 0;
+}
+
 extern "C" int watch_path(char* path) 
 {
     if (inotify_file_descriptor < 0) 
@@ -138,6 +159,10 @@ extern "C" int watch_path(char* path)
     int watchDescriptor = inotify_add_watch(inotify_file_descriptor,
         path,
         IN_CREATE | IN_DELETE | IN_MODIFY);
+
+    watchers[watchDescriptor] = path;
+
+    return watchDescriptor;
 
     /*epoll_event event;
     event.events = EPOLLIN;

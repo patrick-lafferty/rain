@@ -30,37 +30,70 @@ SOFTWARE.
 (require ffi/unsafe)
 (require ffi/unsafe/define)
 (require racket/place)
+(require racket/list)
+(require racket/match)
 
 (define-ffi-definer define-libnotify (ffi-lib "libnotify" '(#f)))
 
 (define-libnotify watch_path (_fun _string -> _int))
-
-
-#|(define _cb (_cprocedure
-    (list _int)
-    _int
-))|#
-
-;(define-libnotify watch_all (_fun _cb -> _int))
-
-;(define (watch func) (watch_all func))
+(define-libnotify stop_watching_path (_fun _int -> _int))
+(define-libnotify stop_watching(_fun -> _int))
 
 (require "job-parameters.rkt")
 
-(define (watch-th ch fn)
-    (let ([r (sync ch)])
-        (parameterize ([is-in-thread? #t])
-            (fn r)))
-    (watch-th ch fn))
+(define (watch-thread channel fn my-descriptor)
+    ;(let* ([choice (choice-evt (wrap-evt (thread-receive-evt) (lambda (x) (thread-receive))) channel)]
+    ;        [result (sync choice)])
+    (let ([result (sync (wrap-evt (thread-receive-evt) (lambda (x) (thread-receive))))])
+        (printf "[watch-thread] ~v~n" result)
+        (if (descriptor? result)
+            (stop_watching_path (descriptor-d result))
+            (begin 
+                (when (eqv? my-descriptor result)
+                    (parameterize ([is-in-thread? #t])
+                        (fn result)))
+                (watch-thread channel fn my-descriptor)))))
+
+;todo: cancel watches
+;dont hardcode path in notify.cpp
+;only one place for all watches
+
+(define watcher-place #f)
+
+(struct watcher (descriptor thread))
+
+(struct subscribe (thread))
+(struct unsubscribe (thread))
+
+(define (master-thread place_channel subscribers) 
+    (let* ([choice (choice-evt (wrap-evt (thread-receive-evt) (lambda (x) (thread-receive))) place_channel)]
+            [result (sync choice)])
+        (cond
+            [(integer? result)
+                (begin 
+                    (for ([i subscribers])
+                        (thread-send i result))
+                    (master-thread place_channel subscribers))]
+            [(subscribe? result)
+                (master-thread place_channel (cons (subscribe-thread result) subscribers))]
+            [(unsubscribe? result)
+                (master-thread place_channel (remove (unsubscribe-thread result) subscribers))]
+            [else (void)])))
+            
+(define master #f)
 
 (define (watch path func) 
 
-    (watch_path "/home/pat/projects/lush/docs")
+    (let ([watch-descriptor (watch_path path)]);"/home/pat/projects/lush/docs")])
 
-    ;(let ([p (place ch (watcher ch))])
-    (let ([p (dynamic-place "filesystem-watcher-place.rkt" 'watcher)])
-        (thread (lambda () (watch-th p func)))))
-                
+        (unless watcher-place
+            (displayln "creating watcher-place")
+            (set! watcher-place (dynamic-place "filesystem-watcher-place.rkt" 'watcher))
+            (set! master (thread (lambda () (master-thread watcher-place '())))))
+
+        (let ([new-thread (thread (lambda () (watch-thread watcher-place func watch-descriptor)))])
+            (thread-send master (subscribe new-thread))
+            (hash-set! watchers path (watcher watch-descriptor new-thread)))))
 
 (define (can-execute path)
     (let ([filename 
@@ -98,9 +131,18 @@ SOFTWARE.
                         ))])
             (hash-set! watchers path watcher-thread))))|#
 
+(struct descriptor (d))
+
 (define (stop-watching path)
     (when (hash-has-key? watchers path)
-        (thread-send (hash-ref watchers path) 1)
-        (hash-remove! watchers path)))
+        (let ([watcher (hash-ref watchers path)])
+            (thread-send (watcher-thread watcher) (descriptor (watcher-descriptor watcher)));(watcher-descriptor watcher))
+            (thread-send master (unsubscribe (watcher-thread watcher)))
+            (hash-remove! watchers path)
+            (when (hash-empty? watchers)
+                (stop_watching)
+                (thread-send master #f)
+                (place-kill watcher-place)
+                (set! watcher-place #f)))))
 
 (define (is-watching? path) (hash-has-key? watchers path))

@@ -26,6 +26,7 @@ SOFTWARE.
 ;Basic shell that uses Racket as its scripting language
 
 (require "shell.rkt")
+(require "sh-lang.rkt")
 (require racket/place)
 
 (define (input-loop channel)
