@@ -21,7 +21,38 @@ SOFTWARE.
 
 @title[#:tag "shell" #:version ""]{Shell}
 
+The goal for the shell command line was to try to have familiar syntax as to what you'd 
+use in bash, while making a few improvements. To do this Lush changes the current readtable
+so that whenever a { is detected it parses the source differently until the closing }. 
+In Racket (, [, and { are all equivalent and since in my experience {}'s aren't used much
+I decided to repurpose them to delimit shell lang. Any code in shell-lang gets converted to valid
+Racket code, and you can combine Racket and shell by including Racket variables or 
+expressions inside shell as you can see in the section below.
+
+For more information on shell lang see @secref["sh-lang"].
+
 @section{Running programs}
+
+To run a program, enclose it and any arguments inside curly braces {}.
+
+Example: 
+
+@nested[#:style 'code-inset]{{ls}}
+
+You can use Racket variables inside {}:
+
+@nested[#:style 'code-inset]{
+    (define (my-ls filename)
+        {ls filename})
+
+    (my-ls "interpreter.rkt")
+}
+
+as well as use the result of expressions:
+
+@nested[#:style 'code-inset]{
+    {ls (map (lambda (x) (string-append x ".rkt")) '("shell" "builtins"))}
+}
 
 @section{Piping}
 

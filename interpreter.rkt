@@ -154,6 +154,9 @@ SOFTWARE.
         [(list 'quote a) 
             (debug-printf "[interpret] quote: ~v~n" a)
             a]
+        [(list 'quote exprs ...)
+            (debug-printf "[interpret] quote: ~v~n" exprs)
+            exprs]
         [(list 'let val-exprs body ...)
             (debug-printf "[interpret] let val-exprs: ~v body: ~v~n" val-exprs body)
             (let* ([ids (map (match-lambda [(list id val) (escape-local id env)]) val-exprs)]

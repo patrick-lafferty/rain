@@ -38,6 +38,7 @@ It currently features:
 @; ------------------------------------------------------------------------
 @include-section["getting-started.scrbl"]
 @include-section["shell.scrbl"]
+@include-section["sh-lang.scrbl"]
 @include-section["interpreter.scrbl"]
 @include-section["filesystem.scrbl"]
 
