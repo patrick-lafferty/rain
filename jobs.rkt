@@ -67,6 +67,7 @@ SOFTWARE.
 
 (require "terminal.rkt")
 (require "termios.rkt")
+(require "debug_printf.rkt")
 
 (define SIGCONT 18)
 
@@ -111,7 +112,7 @@ SOFTWARE.
 
         (define/public (become-foreground-process terminal)
             (when can-continue?
-                (displayln "[bfp] can-continue")
+                (debug-printf "[bfp] can-continue")
                 (kill pid SIGCONT)
                 (send termios restore-tmodes terminal))
 
@@ -208,7 +209,7 @@ SOFTWARE.
 
         (define/public (launch-subprocess job in out err pgid)
             
-            (printf "[launch-process] about to subprocess~n")
+            (debug-printf "[launch-process] about to subprocess~n")
             (let* ([argv (send job get-argv)]
                     [path (find-executable-path (first argv))]
                     [args (map (lambda (x) (if x x '())) (rest argv))]
@@ -230,7 +231,7 @@ SOFTWARE.
             (send job become-foreground-process terminal)
             
             ;TODO: change waiting to wait on all from process group
-            (printf "[pgif] waitpid id: ~v~n" (* -1 pgid))
+            (debug-printf "[pgif] waitpid id: ~v~n" (* -1 pgid))
             (define-values (status result) (waitpid -1 WUNTRACED)) ;WAIT_ANY WUNTRACED))
             ;(subprocess-wait (send job get-proc))
             ;(define status 1)
@@ -249,15 +250,15 @@ SOFTWARE.
             (void))
 
         (define/public (run-job job fd-in fd-out)
-            (printf "[run-job] job: ~v fd-in: ~v fd-out: ~v~n" job fd-in fd-out)
+            (debug-printf "[run-job] job: ~v fd-in: ~v fd-out: ~v~n" job fd-in fd-out)
             (let ([pid (fork)])
-                (printf "[run-job] after fork")
+                (debug-printf "[run-job] after fork")
                 (if (eq? pid 0)
                     (launch-process job (list fd-in fd-out))
                     (begin 
-                        (printf "[run-job] parent")
+                        (debug-printf "[run-job] parent")
                         (put-job-in-foreground job pid)
-                        (printf "[run-job] parent after put-job-in-foreground")
+                        (debug-printf "[run-job] parent after put-job-in-foreground")
                         (when fd-in (close fd-in))
                         (when fd-out (close fd-out))
                     ))
@@ -266,7 +267,7 @@ SOFTWARE.
         (define/public (run-job-subprocess job in out err pgid)
             ;(let-values ([(proc stdout stdin stderr) (subprocess #f #f #f (find-executable-path ))]))
             (let ([proc (launch-subprocess job in out err pgid)])
-                (printf "[rjs] is-in-thread? ~v~n" (is-in-thread?))
+                (debug-printf "[rjs] is-in-thread? ~v~n" (is-in-thread?))
                 (unless (is-in-thread?)
                     (put-job-in-foreground job (subprocess-pid (send job get-proc)) (send job get-pgid)))))
 
@@ -309,7 +310,7 @@ SOFTWARE.
 
 
         (define/public (launch-group-old jobs) 
-            (printf "[launch-group] jobs: ~v~n" jobs)
+            (debug-printf "[launch-group] jobs: ~v~n" jobs)
             (let ([pipes 
                 (map 
                     (lambda (x) (let-values ([(fd result) (pipe)]) fd)) 
@@ -318,10 +319,10 @@ SOFTWARE.
                     (lambda (prev current fd-in fd-out)
                         (match current
                             [(cons a '()) 
-                                (printf "[launch-group] cons a: ~v~n" a)
+                                (debug-printf "[launch-group] cons a: ~v~n" a)
                                 (run-job a fd-in #f)]
                             [(cons a b) 
-                                (printf "[launch-group] cons a: ~v b: ~v~n" a b)
+                                (debug-printf "[launch-group] cons a: ~v b: ~v~n" a b)
                                 (let* ([fd (first fd-out)]
                                         [in (first fd)]
                                         [out (second fd)])
