@@ -1,3 +1,22 @@
+#|
+MIT License
+Copyright (c) 2017 Patrick Lafferty
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+|#
 #lang racket/base
 
 (require racket/match)
@@ -32,16 +51,6 @@
     (match (system-type 'os)
         ['unix ffi-read-line]
         [_ read-line]))
-
-;up: 27, 91, 65
-;left: 27, 91, 68
-;right: 27, 91, 67
-;down: 27, 91, 66
-;f1: 27, 79, 80
-;backspace: 127
-;return: 10
-;del: 27, 91, 51, 126
-;tab: 9
 
 (define (refresh-line [show-prompt? #t])
     (printf "\x1b[2K") ;ANSI escape code CSI n K - Erase in Line
@@ -137,12 +146,6 @@
                         (if (balanced line)
                             (begin 
                                 (send history add line)
-                                #|(let ([code (read (open-input-string line))])                     
-                                    (cond
-                                        [(list? code) (exec code)]
-                                        [(symbol? code) (handle-symbol code)]
-                                        [ else (printf "unknown: ~a~n" code)]))
-                                        |#
                                 (place-channel-put channel line)
                                 (send commandline clear))
                             (begin 

@@ -1,4 +1,4 @@
-#|
+/*
 MIT License
 Copyright (c) 2017 Patrick Lafferty
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -16,7 +16,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-|#
+*/
 #include <sys/wait.h>
 
 //gcc -shared -o libsignals.so -fPIC signals.c
