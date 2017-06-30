@@ -58,7 +58,7 @@ int* read_events(int* lengthh)
             {
                 wds.push_back(event->wd);
             }
-            else if (event->mask & IN_MODIFY && !(event->mask & IN_ISDIR))
+            else if (event->mask & IN_MODIFY)
             {
                 struct stat s;
                 std::string path = watchers[event->wd];
