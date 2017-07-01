@@ -42,6 +42,14 @@ Example:
 You can use Racket variables inside {}:
 
 @nested[#:style 'code-inset]{
+    (define path "docs")
+    
+    {ls docs}
+}
+
+and use sh lang inside Racket functions:
+
+@nested[#:style 'code-inset]{
     (define (my-ls filename)
         {ls filename})
 
@@ -79,7 +87,7 @@ stdout and stderr get displayed on the screen. With redirection you can change t
 for instance you can redirect stdin to read from a file, or stdout to output to a file.
 The second example is useful when you want to save the resulting output of a program
 to read again later. To redirectin Lush:
-changed 
+
 @itemlist[@item{@exec{ < in-file } redirects stdin}
     @item{@exec{ > out-file } redirects stdout}
     @item{@exec{ ^ err-file } redirects stderr}
