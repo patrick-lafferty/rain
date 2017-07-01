@@ -41,7 +41,7 @@ Then extract lush some place you want. To put lush in your home dir:
 
 Now you can run Lush:
 
-@exec{lush/lush}
+@exec{~/lush/bin/lush}
 
 @section{Command line}
 
