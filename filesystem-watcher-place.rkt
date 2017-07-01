@@ -1,4 +1,4 @@
-/*
+#|
 MIT License
 Copyright (c) 2017 Patrick Lafferty
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -16,17 +16,30 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-*/
-#include <sys/wait.h>
+|#
+#lang racket/base
 
-//gcc -shared -o libsignals.so -fPIC signals.c
+(provide create-watcher-place)
 
-int childExited(int status) 
-{
-    return WIFEXITED(status);
-}
+(require ffi/unsafe)
+(require ffi/unsafe/define)
+(require racket/place)
 
-int childStopped(int status)
-{
-    return WIFSTOPPED(status);
-}
+(define libnotify-path (build-path (find-system-path 'collects-dir) "libnotify"))
+(define-ffi-definer define-libnotify (ffi-lib libnotify-path '(#f)))
+
+(define-libnotify watch_all (_fun (length : (_ptr o _int))
+    -> (buffer : (_cpointer 'buffer))
+    -> (values length buffer)))
+
+(define (watcher channel)
+    (let-values ([(length buffer) (watch_all)])
+        (when (> length 0)
+            (for ([i length])
+                (place-channel-put channel (ptr-ref buffer _int i))))
+
+        (free buffer))
+    (watcher channel))
+
+(define (create-watcher-place)
+    (place channel (watcher channel)))

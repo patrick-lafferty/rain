@@ -1,14 +1,35 @@
+/*
+MIT License
+Copyright (c) 2017 Patrick Lafferty
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 #include <sys/inotify.h>
-//#include <sys/eventfd.h>
-#include <sys/epoll.h>
 #include <stdlib.h>
 #include <vector>
 #include <unistd.h>
 #include <iostream>
+#include <sys/stat.h>
+#include <map>
+
+//g++ -shared -o libnotify.so -fPIC notify.cpp -std=c++11
 
 int inotify_file_descriptor {-1};
-//int event_file_descriptor {-1};
-int epoll {-1};
+
+std::map<int, std::string> watchers;
 
 int* read_events(int* lengthh)
 {
@@ -16,8 +37,7 @@ int* read_events(int* lengthh)
     int event_size = sizeof(inotify_event) + NAME_MAX + 1;
     int max_events = 10;
     int buffer_size = event_size * max_events;
-    //char buffer[buffer_size];
-    std::vector<char> buffer(buffer_size);
+    std::vector<unsigned char> buffer(buffer_size);
 
     int length = read(inotify_file_descriptor, buffer.data(), buffer_size);
 
@@ -32,18 +52,22 @@ int* read_events(int* lengthh)
         {
             if (event->mask & IN_CREATE)
             {
-        wds.push_back(event->wd);
-                std::cout << "created " << event->name << std::endl;
+                wds.push_back(event->wd);
             }
             else if (event->mask & IN_DELETE)
             {
-        wds.push_back(event->wd);
-                std::cout << "delete " << event->name << std::endl;
+                wds.push_back(event->wd);
             }
-            else if (event->mask & IN_MODIFY && !(event->mask & IN_ISDIR))
+            else if (event->mask & IN_MODIFY)
             {
-        wds.push_back(event->wd);
-                std::cout << "modify " << event->name << std::endl;
+                struct stat s;
+                std::string path = watchers[event->wd];
+                path += std::string{"/"} + event->name;
+
+                if (stat(path.c_str(), &s) == 0 && !S_ISDIR(s.st_mode)) 
+                {
+                    wds.push_back(event->wd);
+                }
             }
         }
 
@@ -57,77 +81,33 @@ int* read_events(int* lengthh)
     return outbuffer;
 }
 
-typedef int (*callback)(int);
-
-extern "C" int watch_all3(callback cb)
-{
-    int NAME_MAX = 255;
-    int event_size = sizeof(inotify_event) + NAME_MAX + 1;
-    int max_events = 10;
-    int buffer_size = event_size * max_events;
-    std::vector<char> buffer(buffer_size);
-
-    int length = read(inotify_file_descriptor, buffer.data(), buffer_size);
-
-    int i = 0;
-    std::vector<int> wds;
-
-    while (i < length) 
-    {
-        inotify_event* event = reinterpret_cast<inotify_event*>(&buffer[i]);
-
-        if (event->len)
-        {
-            if (event->mask & IN_CREATE)
-            {
-                (*cb)(event->wd);
-                std::cout << "created " << event->name << std::endl;
-            }
-            else if (event->mask & IN_DELETE)
-            {
-                (*cb)(event->wd);
-                std::cout << "delete " << event->name << std::endl;
-            }
-            else if (event->mask & IN_MODIFY && !(event->mask & IN_ISDIR))
-            {
-                (*cb)(event->wd);
-                std::cout << "modify " << event->name << std::endl;
-            }
-        }
-
-        i += event_size + event->len;
-    }
-}
-
-//extern "C" int watch_all(int* wd_buffer)
 extern "C" int* watch_all(int* length)
 {
-    /*if (epoll < 0)
-    {
-        return epoll;
-    }*/
-
     if (inotify_file_descriptor < 0)
     {
-        return nullptr;//inotify_file_descriptor;
+        return nullptr;
     }
 
-/*    constexpr int MAX_EVENTS = 5;
-    epoll_event events[MAX_EVENTS];
-
-    int count = epoll_wait(epoll, events, MAX_EVENTS, -1);
-
-    if (count < 0)
-    {
-        return count;
-    }
-
-    for (int i = 0; i < count; i++)
-    {
-        auto& event = events[i];
-        std::cout << "received event" << std::endl;
-    }*/
     return read_events(length); 
+}
+
+extern "C" int stop_watching_path(int watch_descriptor)
+{
+    auto it = watchers.find(watch_descriptor);
+
+    if (it != end(watchers))
+    {
+        watchers.erase(it);
+    }
+
+    return inotify_rm_watch(inotify_file_descriptor, watch_descriptor);
+}
+
+extern "C" int stop_watching()
+{
+    close(inotify_file_descriptor);
+    inotify_file_descriptor = -1;
+    return 0;
 }
 
 extern "C" int watch_path(char* path) 
@@ -142,34 +122,11 @@ extern "C" int watch_path(char* path)
         }
     }
 
-    /*if (event_file_descriptor < 0)
-    {
-        event_file_descriptor = eventfd(0, 0);
-
-        if (event_file_descriptor < 0)
-        {
-            return event_file_descriptor;
-        }
-    }*/
-
-    /*if (epoll < 0)
-    {
-        epoll = epoll_create(1);
-
-        if (epoll < 0)
-        {
-            return epoll;
-        }
-    }
-*/
     int watchDescriptor = inotify_add_watch(inotify_file_descriptor,
         path,
         IN_CREATE | IN_DELETE | IN_MODIFY);
 
-    /*epoll_event event;
-    event.events = EPOLLIN;
-    event.data.fd = inotify_file_descriptor;
+    watchers[watchDescriptor] = path;
 
-    epoll_ctl(epoll, EPOLL_CTL_ADD, inotify_file_descriptor, &event);
-*/    
+    return watchDescriptor;
 }

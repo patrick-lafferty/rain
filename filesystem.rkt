@@ -30,46 +30,65 @@ SOFTWARE.
 (require ffi/unsafe)
 (require ffi/unsafe/define)
 (require racket/place)
+(require racket/list)
+(require racket/match)
+(require "filesystem-watcher-place.rkt")
 
-(define-ffi-definer define-libnotify (ffi-lib "notify" '(#f)))
+(define libnotify-path (build-path (find-system-path 'collects-dir) "libnotify"))
+(define-ffi-definer define-libnotify (ffi-lib libnotify-path '(#f)))
 
 (define-libnotify watch_path (_fun _string -> _int))
-(define-libnotify watch_all (_fun (length : (_ptr o _int))
-    -> (buffer : (_cpointer 'buffer))
-    -> (values length buffer)))
+(define-libnotify stop_watching_path (_fun _int -> _int))
+(define-libnotify stop_watching(_fun -> _int))
 
-#|(define _cb (_cprocedure
-    (list _int)
-    _int
-))|#
+(require "job-parameters.rkt")
 
-;(define-libnotify watch_all (_fun _cb -> _int))
+(define (watch-thread channel fn my-descriptor)
+    (let ([result (sync (wrap-evt (thread-receive-evt) (lambda (x) (thread-receive))))])
+        (if (descriptor? result)
+            (stop_watching_path (descriptor-d result))
+            (begin 
+                (when (eqv? my-descriptor result)
+                    (parameterize ([is-in-thread? #t])
+                        (fn result)))
+                (watch-thread channel fn my-descriptor)))))
 
-;(define (watch func) (watch_all func))
+(define watcher-place #f)
 
-(define (watcher ch)
-    (let-values ([(length buffer) (watch_all)])
-        (printf "length: ~v buffer: ~v~n" length buffer)
-        (when (> length 0)
-            (for ([i length])
-                (place-channel-put ch (ptr-ref buffer _int i))))
+(struct watcher (descriptor thread))
 
-        (free buffer))
-    (watcher ch))
+(struct subscribe (thread))
+(struct unsubscribe (thread))
 
-(define (watch-th ch fn)
-    (let ([r (sync ch)])
-        (fn r))
-    (watch-th ch fn))
+(define (master-thread place_channel subscribers) 
+    (let* ([choice (choice-evt (wrap-evt (thread-receive-evt) (lambda (x) (thread-receive))) place_channel)]
+            [result (sync choice)])
+        (cond
+            [(integer? result)
+                (begin 
+                    (for ([i subscribers])
+                        (thread-send i result))
+                    (master-thread place_channel subscribers))]
+            [(subscribe? result)
+                (master-thread place_channel (cons (subscribe-thread result) subscribers))]
+            [(unsubscribe? result)
+                (master-thread place_channel (remove (unsubscribe-thread result) subscribers))]
+            [else (void)])))
+            
+(define master #f)
 
 (define (watch path func) 
 
-    (watch_path "/home/pat/projects/lush/docs")
+    (let ([watch-descriptor (watch_path path)])
 
-    (let ([p (place ch (watcher ch))])
-        (thread
-            (lambda () (watch-th p func)))))
-                
+        (unless watcher-place
+            (set! watcher-place (create-watcher-place))
+            ;(set! watcher-place (dynamic-place "filesystem-watcher-place.rkt" 'watcher))
+            (set! master (thread (lambda () (master-thread watcher-place '())))))
+
+        (let ([new-thread (thread (lambda () (watch-thread watcher-place func watch-descriptor)))])
+            (thread-send master (subscribe new-thread))
+            (hash-set! watchers path (watcher watch-descriptor new-thread)))))
 
 (define (can-execute path)
     (let ([filename 
@@ -80,36 +99,20 @@ SOFTWARE.
         (or (find-executable-path filename)
             (find-executable-path (format "~a.exe" filename)))))
 
-#|(define (watcher path) 
-    (filesystem-change-evt? 
-        (sync 
-            (choice-evt 
-                (thread-receive-evt) 
-                (filesystem-change-evt path (lambda () #f))))))
-|#
 (define watchers (make-hash))
 
-#|(define (watch path func)
-    (unless (hash-has-key? watchers path)
-        (printf "watching ~v...~n" path)
-        (let ([watcher-thread
-                (thread
-                    (lambda ()
-                        (letrec ([f (lambda () 
-                            (if (watcher path) 
-                                (begin
-                                    (displayln "changed") 
-                                    (func)
-                                    (f))
-                                (displayln "thread-receive-evt")))])
-                            (f))
-                        (displayln "done")
-                        ))])
-            (hash-set! watchers path watcher-thread))))|#
+(struct descriptor (d))
 
 (define (stop-watching path)
     (when (hash-has-key? watchers path)
-        (thread-send (hash-ref watchers path) 1)
-        (hash-remove! watchers path)))
+        (let ([watcher (hash-ref watchers path)])
+            (thread-send (watcher-thread watcher) (descriptor (watcher-descriptor watcher)))
+            (thread-send master (unsubscribe (watcher-thread watcher)))
+            (hash-remove! watchers path)
+            (when (hash-empty? watchers)
+                (stop_watching)
+                (thread-send master #f)
+                (place-kill watcher-place)
+                (set! watcher-place #f)))))
 
 (define (is-watching? path) (hash-has-key? watchers path))

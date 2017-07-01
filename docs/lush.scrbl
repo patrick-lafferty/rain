@@ -21,7 +21,7 @@ SOFTWARE.
 @(require scribble/core
           scribble/manual)
 
-@margin-note{This page was last updated on June 27/2017}
+@margin-note{This page was last updated on June 29/2017}
 @title[#:tag "top" #:version "" ]{LuSH - The Lu Shell}
 
 @author["Patrick Lafferty"]
@@ -38,6 +38,8 @@ It currently features:
 @; ------------------------------------------------------------------------
 @include-section["getting-started.scrbl"]
 @include-section["shell.scrbl"]
+@include-section["sh-lang.scrbl"]
 @include-section["interpreter.scrbl"]
+@include-section["filesystem.scrbl"]
 
 @index-section[]

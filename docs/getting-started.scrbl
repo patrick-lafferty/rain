@@ -54,9 +54,9 @@ Lush supports multi-line editing. For example to write a multi-line function, si
 bracket and press enter. You can keep entering new lines and once Lush detects the last closing bracket, it joins
 all the lines you entered and interprets it.
 
-@racketblock[(define (greet name)
-
-(printf "hello, ~a" name))]
+@racketblock[
+    (define (greet name)
+        (printf "hello, ~a" name))]
 
 Lush won't create the greet function until the last ). If you want to cancel input simply press Ctrl+D.
 
