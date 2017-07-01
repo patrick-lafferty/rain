@@ -40,7 +40,6 @@ SOFTWARE.
     (input-loop channel))
 
 (define (main)
-    ;(let ([p (dynamic-place "repl-place.rkt" 'repl)])
     (let ([p (create-repl-place)])
         (input-loop p)))
 
