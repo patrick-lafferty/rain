@@ -33,11 +33,11 @@ If you want to use it with WSL, make sure you have the creators update as it sub
 
 Open bash and get the latest release from @(hyperlink "https://github.com/patrick-lafferty/lush/releases" "github"):
 
-@exec{wget https://github.com/patrick-lafferty/lush/releases/@(version)/lush.tar.xz}
+@exec{wget https://github.com/patrick-lafferty/lush/releases/download/@(version)/lush.tar.xz}
 
 Then extract lush some place you want. To put lush in your home dir:
 
-@exec{tar xf lush.tar.xz ~/lush}
+@exec{tar xf lush.tar.xz}
 
 Now you can run Lush:
 
