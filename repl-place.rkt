@@ -164,7 +164,7 @@ SOFTWARE.
                 (refresh-line show-prompt?)
                 (input-loop channel show-prompt?)]))))
 
-(provide repl)
+(provide create-repl-place)
 
 (define (repl channel)
     (with-handlers
@@ -173,3 +173,6 @@ SOFTWARE.
         (flush-output)
         (input-loop channel)
         (repl channel)))
+
+(define (create-repl-place)
+    (place channel (repl channel)))

@@ -31,14 +31,3 @@ SOFTWARE.
         (let ([profile (open-output-file user-profile)])
             (close-output-port profile))))
 
-(require racket/rerequire)
-
-(define (source filename shell-namespace)
-    (if (file-exists? filename)   
-        (parameterize ([current-namespace shell-namespace]) 
-        (dynamic-require-for-syntax filename 0))
-        #|(let ([input-file (open-input-file filename)])
-            (let ([code (read input-file)])
-                (eval code shell-namespace)))|#
-        ;(load filename)
-        (printf "Can't source ~a, file does not exist~n" filename)))

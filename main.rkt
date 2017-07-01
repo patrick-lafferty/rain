@@ -28,6 +28,7 @@ SOFTWARE.
 (require "shell.rkt")
 (require "sh-lang.rkt")
 (require racket/place)
+(require "repl-place.rkt")
 
 (define (input-loop channel)
     (let ([line (place-channel-get channel)])
@@ -39,7 +40,8 @@ SOFTWARE.
     (input-loop channel))
 
 (define (main)
-    (let ([p (dynamic-place "repl-place.rkt" 'repl)])
+    ;(let ([p (dynamic-place "repl-place.rkt" 'repl)])
+    (let ([p (create-repl-place)])
         (input-loop p)))
 
 (main)
