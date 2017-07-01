@@ -33,8 +33,9 @@ SOFTWARE.
 (require ffi/unsafe/define)
 
 (define-ffi-definer define-libc (ffi-lib #f))
-(define-ffi-definer define-libexplain (ffi-lib "libexplain" '(#f)))
-(define-ffi-definer define-libsignals (ffi-lib "libsignals" '(#f)))
+
+(define libsignals-path (build-path (find-system-path 'collects-dir) "libsignals"))
+(define-ffi-definer define-libsignals (ffi-lib libsignals-path '(#f)))
 
 (define-libsignals childStopped (_fun _int -> _int))
 (define-libsignals childExited (_fun _int -> _int))
@@ -45,11 +46,6 @@ SOFTWARE.
 (define-libc waitpid (_fun _int (status : (_ptr o _int)) _int 
     -> (r : _int) 
     -> (values status r)))
-(define-libexplain explain_waitpid_or_die (_fun _int (status : (_ptr o _int)) _int 
-    -> (r : _int) 
-    -> (values status r)))
-(define-libexplain explain_waitpid (_fun _int (_ptr i _int) _int 
-    -> _path))
 (define-libc kill (_fun _int _int -> _int))
 
 (define-libc getpid (_fun -> _int))

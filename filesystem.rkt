@@ -32,8 +32,10 @@ SOFTWARE.
 (require racket/place)
 (require racket/list)
 (require racket/match)
+(require "filesystem-watcher-place.rkt")
 
-(define-ffi-definer define-libnotify (ffi-lib "libnotify" '(#f)))
+(define libnotify-path (build-path (find-system-path 'collects-dir) "libnotify"))
+(define-ffi-definer define-libnotify (ffi-lib libnotify-path '(#f)))
 
 (define-libnotify watch_path (_fun _string -> _int))
 (define-libnotify stop_watching_path (_fun _int -> _int))
@@ -80,7 +82,8 @@ SOFTWARE.
     (let ([watch-descriptor (watch_path path)])
 
         (unless watcher-place
-            (set! watcher-place (dynamic-place "filesystem-watcher-place.rkt" 'watcher))
+            (set! watcher-place (create-watcher-place))
+            ;(set! watcher-place (dynamic-place "filesystem-watcher-place.rkt" 'watcher))
             (set! master (thread (lambda () (master-thread watcher-place '())))))
 
         (let ([new-thread (thread (lambda () (watch-thread watcher-place func watch-descriptor)))])

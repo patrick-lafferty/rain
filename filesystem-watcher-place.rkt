@@ -19,13 +19,14 @@ SOFTWARE.
 |#
 #lang racket/base
 
-(provide watcher)
+(provide create-watcher-place)
 
 (require ffi/unsafe)
 (require ffi/unsafe/define)
 (require racket/place)
 
-(define-ffi-definer define-libnotify (ffi-lib "libnotify" '(#f)))
+(define libnotify-path (build-path (find-system-path 'collects-dir) "libnotify"))
+(define-ffi-definer define-libnotify (ffi-lib libnotify-path '(#f)))
 
 (define-libnotify watch_all (_fun (length : (_ptr o _int))
     -> (buffer : (_cpointer 'buffer))
@@ -39,3 +40,6 @@ SOFTWARE.
 
         (free buffer))
     (watcher channel))
+
+(define (create-watcher-place)
+    (place channel (watcher channel)))
