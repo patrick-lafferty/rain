@@ -129,10 +129,12 @@ pipe then creates all the necessary jobs and tells the launcher to run them
     (with-handlers 
         ([exn:fail? (lambda (e) (displayln e))])
         (let ([transformed-code code ])
-            (let ([result (interpret code (list repl-env profile-env) #t)])
-                (cond
-                    [(void? result) (void)]
-                    [else (displayln result)])))))
+            (let ([result (call-with-values (lambda () 
+                    (interpret code (list repl-env profile-env) #t)) list)])
+                (for ([i result])
+                    (cond 
+                        [(void? i) (void)]
+                        [else (displayln i)]))))))
 
 #|
 called when user input is a symbol not a list.
