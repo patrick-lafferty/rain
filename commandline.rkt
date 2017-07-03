@@ -122,7 +122,8 @@ SOFTWARE.
                 (set! length (- length 1))
                 (set! position (- position 1))))
 
-        (define/public (get-line-single) (list->string (reverse line)))
+        ;(define/public (get-line-single) (list->string (reverse line)))
+        (define/public (get-line-single) (reverse line))
 
         (define/public (get-line) 
             (if (null? multiline)

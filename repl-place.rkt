@@ -27,13 +27,6 @@ SOFTWARE.
 
 (require racket/place)
 
-(define prompt-character 
-    (match (system-type 'os)
-        ['unix "λ "]
-        ['windows "> "]
-        ['macosx "λ "]
-    ))
-
 (require ffi/unsafe)
 (require ffi/unsafe/define)
 (define-ffi-definer define-libc (ffi-lib #f))
@@ -46,21 +39,6 @@ SOFTWARE.
 
 (require "ffi_readline.rkt")
 (define-libc getchar (_fun -> _int))
-
-(define safe-read-line
-    (match (system-type 'os)
-        ['unix ffi-read-line]
-        [_ read-line]))
-
-(define (refresh-line [show-prompt? #t])
-    (printf "\x1b[2K") ;ANSI escape code CSI n K - Erase in Line
-    (printf "\x1b[1G") ;ANSI escape code CSI n G - Cursor Horizontal Absolute
-    (when show-prompt?
-        (display prompt-character))
-    (display (send commandline get-line-single))
-    (printf "\x1b[~aG" (+ (if show-prompt? 3 1) (send commandline get-position)))
-    (flush-output)
-    )
 
 (define (parse-escape-sequence)
     (let ([c1 (getchar)])
@@ -85,12 +63,13 @@ SOFTWARE.
 (define (show-history i)
     (let ([past-line (send history get i)])
         (send commandline set-from-history past-line) 
-        (refresh-line)))
+    ))
+        ;(refresh-line)))
 
 (define (handle-escape-sequence)
     (match (parse-escape-sequence)
         ['f1 (display "f1")]
-        ['del (send commandline delete) (refresh-line)]
+        ['del (send commandline delete)] ;(refresh-line)]
         ['up 
             (show-history up-counter)
             (when (< up-counter (send history get-length))
@@ -145,23 +124,33 @@ SOFTWARE.
                     (let ([line (send commandline get-line)])
                         (if (balanced line)
                             (begin 
-                                (send history add line)
-                                (place-channel-put channel line)
+                                (send history add line);(list->string line))
+                                (place-channel-put channel (list 'finished line));(send commandline get-line-single)));line))
                                 (send commandline clear))
                             (begin 
                                 (send commandline store)
+                                (place-channel-put channel (list 'incomplete (send commandline get-line-single)));line))
                                 (send commandline clear-single)
-                                (refresh-line #f)
+                                ;(refresh-line #f)
                                 (input-loop channel #f))))
                     (when (send commandline is-in-multiline?)
-                        (refresh-line #f)
+                        ;(refresh-line #f)
+                        (place-channel-put channel (list 'incomplete (send commandline get-line-single)))
                         (input-loop channel #f)))]
-            [27 (handle-escape-sequence) (input-loop channel show-prompt?)]
-            [127 (send commandline backspace) (refresh-line show-prompt?) (input-loop channel show-prompt?)]
+            [27 
+                (handle-escape-sequence) 
+                (place-channel-put channel (list 'update #t (send commandline get-line-single)))
+                (input-loop channel show-prompt?)]
+            [127 
+                (send commandline backspace) 
+                ;(refresh-line show-prompt?) 
+                (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single)))
+                (input-loop channel show-prompt?)]
             [(? negative?) (displayln "eof?")]
             [_ 
                 (send commandline add-char (integer->char c))
-                (refresh-line show-prompt?)
+                ;(refresh-line show-prompt?)
+                (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single)))
                 (input-loop channel show-prompt?)]))))
 
 (provide create-repl-place)
@@ -169,8 +158,8 @@ SOFTWARE.
 (define (repl channel)
     (with-handlers
         ([exn:fail? (lambda (e) (displayln e))])
-        (refresh-line)
-        (flush-output)
+        ;(refresh-line)
+        ;(flush-output)
         (input-loop channel)
         (repl channel)))
 

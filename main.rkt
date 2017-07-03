@@ -29,15 +29,32 @@ SOFTWARE.
 (require "sh-lang.rkt")
 (require racket/place)
 (require "repl-place.rkt")
+(require "syntax-colourizer.rkt")
 
 (define (input-loop channel)
+    #|(with-handlers
+        ([exn:fail? (lambda (e) (displayln e))]
+         [exn:fail:contract? (lambda (e) (displayln e))])|#
+    ;(print-colour-syntax '() #t)
     (let ([line (place-channel-get channel)])
-        (let ([code (read (open-input-string line))])                     
-            (cond
-                [(list? code) (exec code)]
-                [(symbol? code) (handle-symbol code)]
-                [ else (printf "unknown: ~a~n" code)])))
-    (input-loop channel))
+        ;(printf "got ~v~n" line)
+        (match line
+            [(list 'finished line)
+                (print-colour-syntax (string->list line) #f)
+                (let* (;[line (list->string line)]
+                        [code (read (open-input-string line))])    
+                    (printf "interpreting ~v~n" line)
+                    (cond
+                        [(list? code) (exec code)]
+                        [(symbol? code) (handle-symbol code)]
+                        [ else (printf "unknown: ~a~n" code)]))]
+
+            [(list 'incomplete line)
+                (print-colour-syntax line #f)]
+            [(list 'update show-prompt? line)
+                (print-colour-syntax line show-prompt?)]))
+
+    (input-loop channel));)
 
 (define (main)
     (let ([p (create-repl-place)])
