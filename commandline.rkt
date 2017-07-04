@@ -128,7 +128,7 @@ SOFTWARE.
         (define/public (get-line) 
             (if (null? multiline)
                 (list->string (reverse line))
-                (let ([folded-list (flatten (cons line multiline))])
+                (let ([folded-list (flatten (list line #\space multiline))])
                     (list->string (reverse folded-list)))))
 
     ))

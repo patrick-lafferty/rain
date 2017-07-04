@@ -31,11 +31,11 @@ SOFTWARE.
 (require "repl-place.rkt")
 (require "syntax-colourizer.rkt")
 
-(define (input-loop channel)
+(define (input-loop channel current-line show-prompt?)
     #|(with-handlers
         ([exn:fail? (lambda (e) (displayln e))]
          [exn:fail:contract? (lambda (e) (displayln e))])|#
-    ;(print-colour-syntax '() #t)
+    (print-colour-syntax current-line show-prompt?)
     (let ([line (place-channel-get channel)])
         ;(printf "got ~v~n" line)
         (match line
@@ -47,18 +47,20 @@ SOFTWARE.
                     (cond
                         [(list? code) (exec code)]
                         [(symbol? code) (handle-symbol code)]
-                        [ else (printf "unknown: ~a~n" code)]))]
+                        [ else (printf "unknown: ~a~n" code)]))
+                (input-loop channel '() #t)]
 
             [(list 'incomplete line)
-                (print-colour-syntax line #f)]
+                (print-colour-syntax line #f)
+                (input-loop channel line #f)]
             [(list 'update show-prompt? line)
-                (print-colour-syntax line show-prompt?)]))
-
-    (input-loop channel));)
+                (print-colour-syntax line show-prompt?)
+                (input-loop channel line show-prompt?)]))
+    )
+    ;(input-loop channel current-line))
 
 (define (main)
     (let ([p (create-repl-place)])
-        ;(place-channel-get p)
-        (input-loop p)))
+        (input-loop p '() #t)))
 
 (main)

@@ -129,7 +129,7 @@ SOFTWARE.
                                 (send commandline clear))
                             (begin 
                                 (send commandline store)
-                                (place-channel-put channel (list 'incomplete (send commandline get-line-single)));line))
+                                (place-channel-put channel (list 'incomplete '())); (send commandline get-line-single)));line))
                                 (send commandline clear-single)
                                 ;(refresh-line #f)
                                 (input-loop channel #f))))
