@@ -120,8 +120,12 @@ SOFTWARE.
     (place-channel-put channel (list 'update-cursor (send commandline get-position)))
     (let ([c (getchar)])
         (match c
-            [4 (send commandline clear)]
+            ;EoF from user pressing Ctrl-D
+            [4
+                (send commandline clear)
+                (place-channel-put channel 'clear)]
             [9 (input-loop channel show-prompt?)]
+            ;newline from user pressing enter
             [10 (displayln "")   
                 (set! up-counter 0)
 
@@ -140,7 +144,7 @@ SOFTWARE.
                                 (input-loop channel #f))))
                     (when (send commandline is-in-multiline?)
                         ;(refresh-line #f)
-                        (place-channel-put channel (list 'incomplete (send commandline get-line-single)))
+                        (place-channel-put channel 'newline);'incomplete (send commandline get-line-single)))
                         (input-loop channel #f)))]
             [27 
                 (handle-escape-sequence channel) 

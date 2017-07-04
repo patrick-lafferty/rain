@@ -31,23 +31,36 @@ SOFTWARE.
 (require "repl-place.rkt")
 (require "syntax-colourizer.rkt")
 
+(define pretty-printer (new pretty-printer%))
+
 (define (input-loop channel current-line show-prompt? current-position)
-    (print-colour-syntax current-line show-prompt? current-position)
+    ;(print-colour-syntax current-line show-prompt? current-position)
+    (send pretty-printer print-line current-line show-prompt? current-position)
     (let ([line (place-channel-get channel)])
         (match line
+            ['clear 
+                (send pretty-printer reset)
+                (input-loop channel '() #t 0)]
+            ['newline 
+                (send pretty-printer new-line)
+                (input-loop channel '() #t 0)]
             [(list 'finished line)
                 (let* ([code (read (open-input-string line))])    
                     (cond
                         [(list? code) (exec code)]
                         [(symbol? code) (handle-symbol code)]
                         [ else (printf "unknown: ~a~n" code)]))
+                (send pretty-printer reset)
                 (input-loop channel '() #t current-position )]
 
             [(list 'incomplete line)
-                (print-colour-syntax line #f current-position)
+                ;(print-colour-syntax line #f current-position)
+                (send pretty-printer new-line)
+                (send pretty-printer print-line line #f current-position)
                 (input-loop channel line #f current-position)]
             [(list 'update show-prompt? line)
-                (print-colour-syntax line show-prompt? current-position)
+                ;(print-colour-syntax line show-prompt? current-position)
+                (send pretty-printer print-line line show-prompt? current-position)
                 (input-loop channel line show-prompt? current-position)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))
