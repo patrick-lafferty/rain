@@ -4,6 +4,8 @@
 
 (require racket/match)
 (require racket/list)
+(require "interpreter.rkt")
+(require "env.rkt")
 
 (define bracket-counter 0)
 (define (inc-brackets) (set! bracket-counter (add1 bracket-counter)))
@@ -14,13 +16,13 @@
 (define bracket-colours #(68 100 160))
 (define (get-bracket-colour x) (vector-ref bracket-colours (modulo x (vector-length bracket-colours))))
 
-(define (set-colour x)
-    ;())
-    (string->list (format "\e[38;5;~am" x)))
+(define (set-colour x) (string->list (format "\e[38;5;~am" x)))
 
 (define constant-colour 82)
 (define string-colour 173)
-(define identifier-colour 117)
+(define special-form-colour 125)
+(define identifier-colour 27)
+(define unknown-colour 211)
 
 (define (char-delimiter? c)
     (match c
@@ -36,7 +38,6 @@
             (char-delimiter? c))))
 
 (define (add-to-acc acc thing)
-    ;(printf "acc: ~v thing: ~v~n" acc thing)
     (if (null? acc)
         thing
         (cons acc thing)))
@@ -71,15 +72,22 @@
                                 (if (eqv? #\" (first remaining)) (values (rest remaining) #t)
                                     (values remaining #f)))])
                     (let ([acc (add-to-acc acc (set-colour string-colour))])
-                        (printf "remaining: ~v~n" remaining)
                         (let ([quoted 
                             (if add-closing-quote? (list #\" string #\")
                                 (list #\" string))])
                             (lex remaining (add-to-acc acc quoted)))))]
             [_ 
                 (let-values ([(identifier remaining) (splitf-at lst char-identifier?)])
-                    (let ([acc (add-to-acc acc (set-colour identifier-colour))])
-                        (lex remaining (add-to-acc acc identifier))))]
+                    (let* ([symbol (string->symbol (list->string identifier))]
+                            [colour 
+                        (cond
+                            [(is-special-form? symbol)
+                                special-form-colour]
+                            [(lookup symbol (list repl-env profile-env))
+                                identifier-colour]
+                            [else unknown-colour])])
+                        (let ([acc (add-to-acc acc (set-colour colour))])
+                            (lex remaining (add-to-acc acc identifier)))))]
 
         )))
 
@@ -88,9 +96,7 @@
     (set! bracket-counter 0)
     (let* ([lexed (lex lst '())]
             [line (list->string (flatten lexed))])
-        ;(printf "lexed: ~v~nline:~v~n" lexed line)
         (refresh-line line show-prompt?)))
-        ;(display line)))
 
 ;TODO: replace with prompt from user profile
 (define prompt-character 
@@ -101,13 +107,12 @@
     ))
 
 (define (refresh-line line [show-prompt? #t])
-    ;(display "~nprinting: ~v~n" line)
     (printf "\e[2K") ;ANSI escape code CSI n K - Erase in Line
     (printf "\e[1G") ;ANSI escape code CSI n G - Cursor Horizontal Absolute
     ;(when show-prompt?
     ;    (display prompt-character))
     (display line);(send commandline get-line-single))
-    ;(display "a")
+    (printf "\e[39;49m")
     ;(printf "\x1b[~aG" (+ (if show-prompt? 3 1) (send commandline get-position)))
     (flush-output)
     )
