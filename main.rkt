@@ -34,6 +34,7 @@ SOFTWARE.
 (define pretty-printer (new pretty-printer%))
 
 (define (input-loop channel current-line show-prompt? current-position)
+;(displayln "il")
     ;(print-colour-syntax current-line show-prompt? current-position)
     (send pretty-printer print-line current-line show-prompt? current-position)
     (let ([line (place-channel-get channel)])
@@ -60,12 +61,18 @@ SOFTWARE.
                 (input-loop channel line #f current-position)]
             [(list 'update show-prompt? line)
                 ;(print-colour-syntax line show-prompt? current-position)
+                (printf "\e[6n")
+                (flush-output)
                 (send pretty-printer print-line line show-prompt? current-position)
                 (input-loop channel line show-prompt? current-position)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))
                 (flush-output)
                 (input-loop channel current-line show-prompt? position)]
+            [(list 'cursor-position row column)
+                ;(printf "~n~ncursor reports row: ~v column: ~v~n~n" row column)
+                ;(flush-output)
+                (input-loop channel current-line show-prompt? current-position)]
     )))
 
 (define (main)

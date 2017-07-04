@@ -10,12 +10,6 @@
 (require "env.rkt")
 (require "terminal.rkt")
 
-#|(define bracket-counter 0)
-(define (inc-brackets) (set! bracket-counter (add1 bracket-counter)))
-(define (dec-brackets) 
-    ;(unless (eq? bracket-counter 0)
-        (set! bracket-counter (sub1 bracket-counter)))
-|#
 (define bracket-colours #(68 100 160))
 (define (get-bracket-colour x) (vector-ref bracket-colours (modulo x (vector-length bracket-colours))))
 
@@ -55,23 +49,6 @@
 
 (define (clamp x minimum maximum)
     (max (min x maximum) minimum))
-#|
-
-(define (x)
-    (let ([x 1])
-        x))
-
-(
-(
-)
-(
-[
-]
-)
-)
-)
-
-|#
 
 ;TODO: change background to highlight selected bracket pair
 ;TODO: consider having up/down keys move rows when in multi-line mode instead of history
@@ -117,9 +94,9 @@
 
             (cond
                 [(> bracket-counter 0)
-                    (set! indent (+ indent 2))];(* 2 bracket-counter)))]
+                    (set! indent (+ indent 2))]
                 [(< bracket-counter 0)
-                   (set! indent (- indent 2))]));(* 2 bracket-counter)))]))
+                   (set! indent (- indent 2))]))
 
         (define/public (reset)
             (set! bracket-counter 0)
@@ -134,6 +111,32 @@
                 ['(#\{ #\}) #t]
                 [_ #f]))
 
+#|
+bracket highlighting:
+
+each bracket additionally stores character id, line-character-id, line id     ;, (row, col local to multiline not shell, always starts at 0)
+
+line list:
+buffered line chars before list->string was called
+
+closing pairs list:
+
+open-character-id close-character-id
+
+-lookup char under cursor
+-if bracket
+  -lookup pair
+  insert \e[background highlight] to line, redraw line
+
+redrawing lines:
+take actual row number at start, add line id to get actual row of line
+
+need to get screen height to see if it scrolled
+if start-row + line-count > screen-height
+then last line is max row, start-row is screen-height - (start-row + linecount - screen-height)
+
+vim bindings?
+|#
         (define (get-matching-colour bracket-to-match)
             (let ([colour
                 (if (> bracket-counter 0)

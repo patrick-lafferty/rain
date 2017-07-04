@@ -40,23 +40,104 @@ SOFTWARE.
 (require "ffi_readline.rkt")
 (define-libc getchar (_fun -> _int))
 
+(struct cursor-position (row column))
+(struct control-sequence-introducer (code bytes))
+
+(define (lex-csi acc)
+;(displayln "lcsi")
+    (let ([c (getchar)])
+        (if (< c 64)
+            (lex-csi (cons (integer->char c) acc))
+            (control-sequence-introducer c (reverse acc)))))
+
+(define (parse-csi)
+;(displayln "pcsi")
+    (let ([csi (lex-csi '())])
+        (match (integer->char (control-sequence-introducer-code csi))
+            ;CUU - cursor up 
+            [#\A 'up]
+            ;CUD - cursor down
+            [#\B 'down]
+            ;CUF - cursor forward
+            [#\C 'right]
+            ;CUB - cursor back
+            [#\D 'left]
+            [#\~ 'del]
+            ;CNL - cursor next line
+            #|[#\E]
+            ;CPL - cursor previous line
+            [#\F]
+            ;CHA - cursor horizontal absolute
+            [#\G]
+            ;CUP - cursor position
+            [#\H]
+            ;ED - erase in display
+            [#\J]
+            ;EL - erase in line
+            [#\K]
+            ;SU - scroll up
+            [#\S]
+            ;SD - scroll down
+            [#\T]
+            ;HVP - horizontal and vertical position
+            [#\f]|#
+            ;CPR - cursor position
+            ;bytes: row... ; col...
+            [#\R
+                (let-values ([(row column) (splitf-at (control-sequence-introducer-bytes csi) 
+                        (lambda (c) (not (eqv? c #\;))))])
+                    (let ([row (string->number (list->string row))]
+                          [column (string->number (list->string (rest column)))])
+                            (cursor-position row column)))])))
+            
+
 (define (parse-escape-sequence)
+;(displayln "pes")
     (let ([c1 (getchar)])
         (match c1
+            ;79 is O
             [79 (let ([c2 (getchar)])
                     (match c2
+                        ;f1 - f4 is ^[OP...^[OS
+                        ;80 is P
                         [80 'f1]
                         [_ 'unsupported]))]
-            [91 (let ([c2 (getchar)])
-                    (match c2
-                        [51 (let ([c3 (getchar)])
-                                (match c3
-                                    [126 'del]
-                                    [_ 'unsupported]))]
-                        [65 'up]
-                        [66 'down]
-                        [67 'right]
-                        [68 'left]))])))
+            ;91 is [
+            [91 (parse-csi)])));(display "got CSI")
+                #|(let ([c2 (getchar)]
+                        [next (peekchar)])
+                   ; (printf " ~v ~v " c2 next)
+                    (match next
+                        ;59 is ;
+                        [59 ;(display " ; ") 
+                            (let ([c3 (getchar)]
+                                    [c4 (getchar)]
+                                    [next (peekchar)])
+                                    ;82 is R
+                               ; (printf " ~v ~v ~v~n" c3 c4 next)
+                               (printf "csi ~v ~v ~v ~v~n" c2 c3 c4 next)
+                                (if (eqv? next 82)
+                                    (begin
+                                        (getchar)
+                                        (cursor-position c2 c4))
+                                    (begin
+                                        (printf "unexpected CSI ~v~v~v~v" c2 c3 c4 next)
+                                        'unsupported)))]
+                        [_ ;(displayln " _ ")
+                            (match c2
+                                ;51 is 3
+                                [51 (let ([c3 (getchar)])
+                                        (match c3
+                                            ;126 is ~
+                                            [126 'del]
+                                            [_ (printf "unexpected CSI 3 ~v~n" c3) 
+                                                'unsupported]))]
+                                [65 'up]
+                                [66 'down]
+                                [67 'right]
+                                [68 'left]
+                                [_ (printf "unexpected CSI ~v~n" c2)
+                                    'unsupported])]))])))|#
 
 (define up-counter 0)
 
@@ -67,24 +148,33 @@ SOFTWARE.
         ;(refresh-line)))
 
 (define (handle-escape-sequence channel)
+;(displayln "hes")
     (match (parse-escape-sequence)
-        ['f1 (display "f1")]
-        ['del (send commandline delete)] ;(refresh-line)]
+        [(cursor-position row column)
+            ;(flush-output)
+            (place-channel-put channel (list 'cursor-position row column))
+            #f]
+        ['f1 (display "f1") #f]
+        ['del (send commandline delete) #t] ;(refresh-line)]
         ['up 
             (show-history up-counter)
             (when (< up-counter (send history get-length))
-                (set! up-counter (+ up-counter 1)))]
+                (set! up-counter (+ up-counter 1)))
+            #t]
         ['down 
             (when (> up-counter -1)
                 (set! up-counter (- up-counter 1)))
-            (show-history up-counter)]
+            (show-history up-counter)
+            #t]
         ['right 
             (send commandline move-right)
-            (place-channel-put channel (list 'update-cursor (send commandline get-position)))]
+            (place-channel-put channel (list 'update-cursor (send commandline get-position)))
+            #t]
         ['left 
             (send commandline move-left)
-            (place-channel-put channel (list 'update-cursor (send commandline get-position)))]
-        ['unsupported (display "unsupported")]))
+            (place-channel-put channel (list 'update-cursor (send commandline get-position)))
+            #t]
+        ['unsupported (void) #t]));(display "unsupported")]))
 
 (require "commandline.rkt")
 (define commandline (new commandline%))
@@ -116,6 +206,7 @@ SOFTWARE.
 (require "sh-lang.rkt")
 
 (define (input-loop channel [show-prompt? #t])
+    ;(displayln "loop")
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])
     (place-channel-put channel (list 'update-cursor (send commandline get-position)))
     (let ([c (getchar)])
@@ -143,13 +234,14 @@ SOFTWARE.
                                 ;(refresh-line #f)
                                 (input-loop channel #f))))
                     (when (send commandline is-in-multiline?)
-                        ;(refresh-line #f)
+                       ;(refresh-line #f)
                         (place-channel-put channel 'newline);'incomplete (send commandline get-line-single)))
                         (input-loop channel #f)))]
             [27 
-                (handle-escape-sequence channel) 
-                (place-channel-put channel (list 'update #t (send commandline get-line-single)))
-                (input-loop channel show-prompt?)]
+                (let ([update? (handle-escape-sequence channel)])
+                    (when update?
+                        (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single))))
+                    (input-loop channel show-prompt?))]
             [127 
                 (send commandline backspace) 
                 ;(refresh-line show-prompt?) 
@@ -172,5 +264,14 @@ SOFTWARE.
         (input-loop channel)
         (repl channel)))
 
+(define (setup channel)
+    #|(set! peekchar (let ([stdin (fdopen 0 "rb")])
+    (lambda () 
+        (let* ([c (getchar)]
+                [result (ungetc c stdin)])
+            ;(printf "~nungetc: ~v~n" result)
+            c))))|#
+    (repl channel))
+
 (define (create-repl-place)
-    (place channel (repl channel)))
+    (place channel (setup channel)))
