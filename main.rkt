@@ -40,10 +40,10 @@ SOFTWARE.
         ;(printf "got ~v~n" line)
         (match line
             [(list 'finished line)
-                (print-colour-syntax (string->list line) #f)
+                ;(print-colour-syntax (string->list line) #f)
                 (let* (;[line (list->string line)]
                         [code (read (open-input-string line))])    
-                    (printf "interpreting ~v~n" line)
+                    ;(printf "interpreting ~v~n" line)
                     (cond
                         [(list? code) (exec code)]
                         [(symbol? code) (handle-symbol code)]
@@ -58,6 +58,7 @@ SOFTWARE.
 
 (define (main)
     (let ([p (create-repl-place)])
+        ;(place-channel-get p)
         (input-loop p)))
 
 (main)

@@ -19,6 +19,7 @@
     (string->list (format "\e[38;5;~am" x)))
 
 (define constant-colour 82)
+(define string-colour 173)
 (define identifier-colour 117)
 
 (define (char-delimiter? c)
@@ -40,6 +41,9 @@
         thing
         (cons acc thing)))
 
+(define (char-not-quote? c)
+    (not (eqv? #\" c)))
+
 (define (lex lst acc)
     (if (null? lst)
         acc
@@ -59,6 +63,19 @@
                         (lex remaining (add-to-acc acc number))))]
             [(? char-whitespace?)
                 (lex (rest lst) (add-to-acc acc (first lst)))]
+            [#\"
+                (let*-values (
+                    [(string remaining) (splitf-at (rest lst) char-not-quote?)]
+                        [(remaining add-closing-quote?)
+                            (if (null? remaining) (values remaining #f)
+                                (if (eqv? #\" (first remaining)) (values (rest remaining) #t)
+                                    (values remaining #f)))])
+                    (let ([acc (add-to-acc acc (set-colour string-colour))])
+                        (printf "remaining: ~v~n" remaining)
+                        (let ([quoted 
+                            (if add-closing-quote? (list #\" string #\")
+                                (list #\" string))])
+                            (lex remaining (add-to-acc acc quoted)))))]
             [_ 
                 (let-values ([(identifier remaining) (splitf-at lst char-identifier?)])
                     (let ([acc (add-to-acc acc (set-colour identifier-colour))])
