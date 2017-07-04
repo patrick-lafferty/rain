@@ -44,14 +44,12 @@ SOFTWARE.
 (struct control-sequence-introducer (code bytes))
 
 (define (lex-csi acc)
-;(displayln "lcsi")
     (let ([c (getchar)])
         (if (< c 64)
             (lex-csi (cons (integer->char c) acc))
             (control-sequence-introducer c (reverse acc)))))
 
 (define (parse-csi)
-;(displayln "pcsi")
     (let ([csi (lex-csi '())])
         (match (integer->char (control-sequence-introducer-code csi))
             ;CUU - cursor up 
@@ -92,7 +90,6 @@ SOFTWARE.
             
 
 (define (parse-escape-sequence)
-;(displayln "pes")
     (let ([c1 (getchar)])
         (match c1
             ;79 is O
@@ -103,41 +100,7 @@ SOFTWARE.
                         [80 'f1]
                         [_ 'unsupported]))]
             ;91 is [
-            [91 (parse-csi)])));(display "got CSI")
-                #|(let ([c2 (getchar)]
-                        [next (peekchar)])
-                   ; (printf " ~v ~v " c2 next)
-                    (match next
-                        ;59 is ;
-                        [59 ;(display " ; ") 
-                            (let ([c3 (getchar)]
-                                    [c4 (getchar)]
-                                    [next (peekchar)])
-                                    ;82 is R
-                               ; (printf " ~v ~v ~v~n" c3 c4 next)
-                               (printf "csi ~v ~v ~v ~v~n" c2 c3 c4 next)
-                                (if (eqv? next 82)
-                                    (begin
-                                        (getchar)
-                                        (cursor-position c2 c4))
-                                    (begin
-                                        (printf "unexpected CSI ~v~v~v~v" c2 c3 c4 next)
-                                        'unsupported)))]
-                        [_ ;(displayln " _ ")
-                            (match c2
-                                ;51 is 3
-                                [51 (let ([c3 (getchar)])
-                                        (match c3
-                                            ;126 is ~
-                                            [126 'del]
-                                            [_ (printf "unexpected CSI 3 ~v~n" c3) 
-                                                'unsupported]))]
-                                [65 'up]
-                                [66 'down]
-                                [67 'right]
-                                [68 'left]
-                                [_ (printf "unexpected CSI ~v~n" c2)
-                                    'unsupported])]))])))|#
+            [91 (parse-csi)])))
 
 (define up-counter 0)
 
@@ -145,17 +108,14 @@ SOFTWARE.
     (let ([past-line (send history get i)])
         (send commandline set-from-history past-line) 
     ))
-        ;(refresh-line)))
 
 (define (handle-escape-sequence channel)
-;(displayln "hes")
     (match (parse-escape-sequence)
         [(cursor-position row column)
-            ;(flush-output)
             (place-channel-put channel (list 'cursor-position row column))
             #f]
         ['f1 (display "f1") #f]
-        ['del (send commandline delete) #t] ;(refresh-line)]
+        ['del (send commandline delete) #t] 
         ['up 
             (show-history up-counter)
             (when (< up-counter (send history get-length))
@@ -174,7 +134,7 @@ SOFTWARE.
             (send commandline move-left)
             (place-channel-put channel (list 'update-cursor (send commandline get-position)))
             #t]
-        ['unsupported (void) #t]));(display "unsupported")]))
+        ['unsupported (void) #t]))
 
 (require "commandline.rkt")
 (define commandline (new commandline%))
@@ -206,7 +166,6 @@ SOFTWARE.
 (require "sh-lang.rkt")
 
 (define (input-loop channel [show-prompt? #t])
-    ;(displayln "loop")
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])
     (place-channel-put channel (list 'update-cursor (send commandline get-position)))
     (let ([c (getchar)])
@@ -224,18 +183,16 @@ SOFTWARE.
                     (let ([line (send commandline get-line)])
                         (if (balanced line)
                             (begin 
-                                (send history add line);(list->string line))
-                                (place-channel-put channel (list 'finished line));(send commandline get-line-single)));line))
+                                (send history add line)
+                                (place-channel-put channel (list 'finished line))
                                 (send commandline clear))
                             (begin 
                                 (send commandline store)
-                                (place-channel-put channel (list 'incomplete '())); (send commandline get-line-single)));line))
+                                (place-channel-put channel (list 'incomplete '()))
                                 (send commandline clear-single)
-                                ;(refresh-line #f)
                                 (input-loop channel #f))))
                     (when (send commandline is-in-multiline?)
-                       ;(refresh-line #f)
-                        (place-channel-put channel 'newline);'incomplete (send commandline get-line-single)))
+                        (place-channel-put channel 'newline)
                         (input-loop channel #f)))]
             [27 
                 (let ([update? (handle-escape-sequence channel)])
@@ -244,13 +201,11 @@ SOFTWARE.
                     (input-loop channel show-prompt?))]
             [127 
                 (send commandline backspace) 
-                ;(refresh-line show-prompt?) 
                 (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single)))
                 (input-loop channel show-prompt?)]
-            [(? negative?) (void)];(displayln "eof?")]
+            [(? negative?) (void)]
             [_ 
                 (send commandline add-char (integer->char c))
-                ;(refresh-line show-prompt?)
                 (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single)))
                 (input-loop channel show-prompt?)]))))
 
@@ -259,18 +214,10 @@ SOFTWARE.
 (define (repl channel)
     (with-handlers
         ([exn:fail? (lambda (e) (displayln e))])
-        ;(refresh-line)
-        ;(flush-output)
         (input-loop channel)
         (repl channel)))
 
 (define (setup channel)
-    #|(set! peekchar (let ([stdin (fdopen 0 "rb")])
-    (lambda () 
-        (let* ([c (getchar)]
-                [result (ungetc c stdin)])
-            ;(printf "~nungetc: ~v~n" result)
-            c))))|#
     (repl channel))
 
 (define (create-repl-place)
