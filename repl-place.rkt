@@ -66,7 +66,7 @@ SOFTWARE.
     ))
         ;(refresh-line)))
 
-(define (handle-escape-sequence)
+(define (handle-escape-sequence channel)
     (match (parse-escape-sequence)
         ['f1 (display "f1")]
         ['del (send commandline delete)] ;(refresh-line)]
@@ -78,8 +78,12 @@ SOFTWARE.
             (when (> up-counter -1)
                 (set! up-counter (- up-counter 1)))
             (show-history up-counter)]
-        ['right (send commandline move-right)]
-        ['left (send commandline move-left)]
+        ['right 
+            (send commandline move-right)
+            (place-channel-put channel (list 'update-cursor (send commandline get-position)))]
+        ['left 
+            (send commandline move-left)
+            (place-channel-put channel (list 'update-cursor (send commandline get-position)))]
         ['unsupported (display "unsupported")]))
 
 (require "commandline.rkt")
@@ -113,6 +117,7 @@ SOFTWARE.
 
 (define (input-loop channel [show-prompt? #t])
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])
+    (place-channel-put channel (list 'update-cursor (send commandline get-position)))
     (let ([c (getchar)])
         (match c
             [4 (send commandline clear)]
@@ -138,7 +143,7 @@ SOFTWARE.
                         (place-channel-put channel (list 'incomplete (send commandline get-line-single)))
                         (input-loop channel #f)))]
             [27 
-                (handle-escape-sequence) 
+                (handle-escape-sequence channel) 
                 (place-channel-put channel (list 'update #t (send commandline get-line-single)))
                 (input-loop channel show-prompt?)]
             [127 
@@ -146,7 +151,7 @@ SOFTWARE.
                 ;(refresh-line show-prompt?) 
                 (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single)))
                 (input-loop channel show-prompt?)]
-            [(? negative?) (displayln "eof?")]
+            [(? negative?) (void)];(displayln "eof?")]
             [_ 
                 (send commandline add-char (integer->char c))
                 ;(refresh-line show-prompt?)

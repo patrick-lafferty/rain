@@ -98,13 +98,13 @@
     (let* ([maximum (min (- (getTerminalWidth) 3) (length line))])
         (take-right line maximum)))
 
-(define (print-colour-syntax lst show-prompt?)
+(define (print-colour-syntax lst show-prompt? current-position)
     (set! bracket-counter 0)
-    (let* ([lexed (lex lst '())]
+    (let* ([capped (clamp-line lst)]
+            [lexed (lex capped '())]
             [flattened (flatten lexed)]
-            [capped (clamp-line flattened)]
-            [line (list->string capped)])
-        (refresh-line line show-prompt?)))
+            [line (list->string flattened)])
+        (refresh-line line current-position show-prompt?)))
 
 ;TODO: replace with prompt from user profile
 (define prompt-character 
@@ -114,13 +114,13 @@
         ['macosx "λ "]
     ))
 
-(define (refresh-line line [show-prompt? #t])
+(define (refresh-line line current-position [show-prompt? #t])
     (printf "\e[2K") ;ANSI escape code CSI n K - Erase in Line
     (printf "\e[1G") ;ANSI escape code CSI n G - Cursor Horizontal Absolute
     (when show-prompt?
         (display prompt-character))
     (display line);(send commandline get-line-single))
     (printf "\e[39;49m")
-    ;(printf "\x1b[~aG" (+ (if show-prompt? 3 1) (send commandline get-position)))
+    (printf "\e[~aG" (+ (if show-prompt? 3 1) current-position))
     (flush-output)
     )
