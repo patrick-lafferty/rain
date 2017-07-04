@@ -32,18 +32,11 @@ SOFTWARE.
 (require "syntax-colourizer.rkt")
 
 (define (input-loop channel current-line show-prompt?)
-    #|(with-handlers
-        ([exn:fail? (lambda (e) (displayln e))]
-         [exn:fail:contract? (lambda (e) (displayln e))])|#
     (print-colour-syntax current-line show-prompt?)
     (let ([line (place-channel-get channel)])
-        ;(printf "got ~v~n" line)
         (match line
             [(list 'finished line)
-                ;(print-colour-syntax (string->list line) #f)
-                (let* (;[line (list->string line)]
-                        [code (read (open-input-string line))])    
-                    ;(printf "interpreting ~v~n" line)
+                (let* ([code (read (open-input-string line))])    
                     (cond
                         [(list? code) (exec code)]
                         [(symbol? code) (handle-symbol code)]
@@ -57,7 +50,6 @@ SOFTWARE.
                 (print-colour-syntax line show-prompt?)
                 (input-loop channel line show-prompt?)]))
     )
-    ;(input-loop channel current-line))
 
 (define (main)
     (let ([p (create-repl-place)])

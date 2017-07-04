@@ -23,13 +23,20 @@ SOFTWARE.
 
 (provide 
  ;makes the given process group the foreground
- set-foreground-process-group)
+ set-foreground-process-group
+ getTerminalWidth)
 
 (require ffi/unsafe)
+(require ffi/unsafe/define)
 
-(define libc (ffi-lib #f))
+(define-ffi-definer define-libc (ffi-lib #f))
 
-(define tcsetpgrp (get-ffi-obj "tcsetpgrp" libc (_fun _int _int -> _int)))
+(define-libc tcsetpgrp (_fun _int _int -> _int))
+
+(define libterminal-path (build-path (find-system-path 'collects-dir) "libterminal"))
+(define-ffi-definer define-libterminal (ffi-lib libterminal-path '(#f)))
+
+(define-libterminal getTerminalWidth (_fun -> _int))
 
 (define (set-foreground-process-group terminal-descriptor group)
     (tcsetpgrp terminal-descriptor group))

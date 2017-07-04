@@ -92,10 +92,18 @@
         )))
 
 
+(require "terminal.rkt")
+
+(define (clamp-line line)
+    (let* ([maximum (min (- (getTerminalWidth) 3) (length line))])
+        (take-right line maximum)))
+
 (define (print-colour-syntax lst show-prompt?)
     (set! bracket-counter 0)
     (let* ([lexed (lex lst '())]
-            [line (list->string (flatten lexed))])
+            [flattened (flatten lexed)]
+            [capped (clamp-line flattened)]
+            [line (list->string capped)])
         (refresh-line line show-prompt?)))
 
 ;TODO: replace with prompt from user profile
