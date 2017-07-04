@@ -33,16 +33,16 @@ SOFTWARE.
 
 (define pretty-printer (new pretty-printer%))
 
-(define (input-loop channel current-line show-prompt? current-position)
-    (send pretty-printer print-line current-line show-prompt? current-position)
+(define (input-loop channel current-line show-prompt? current-position current-row)
+    (send pretty-printer print-line current-line show-prompt? current-position current-row)
     (let ([line (place-channel-get channel)])
         (match line
             ['clear 
                 (send pretty-printer reset)
-                (input-loop channel '() #t 0)]
+                (input-loop channel '() #t 0 current-row)]
             ['newline 
                 (send pretty-printer new-line)
-                (input-loop channel '() #t 0)]
+                (input-loop channel '() #t 0 current-row)]
             [(list 'finished line)
                 (let* ([code (read (open-input-string line))])    
                     (cond
@@ -50,27 +50,28 @@ SOFTWARE.
                         [(symbol? code) (handle-symbol code)]
                         [ else (printf "unknown: ~a~n" code)]))
                 (send pretty-printer reset)
-                (input-loop channel '() #t current-position )]
+                (input-loop channel '() #t current-position current-row)]
 
             [(list 'incomplete line)
                 (send pretty-printer new-line)
-                (send pretty-printer print-line line #f current-position)
-                (input-loop channel line #f current-position)]
+                (send pretty-printer print-line line #f current-position current-row)
+                (input-loop channel line #f current-position current-row)]
             [(list 'update show-prompt? line)
                 (printf "\e[6n")
                 (flush-output)
-                (send pretty-printer print-line line show-prompt? current-position)
-                (input-loop channel line show-prompt? current-position)]
+                (send pretty-printer print-line line show-prompt? current-position current-row)
+                (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))
+                (send pretty-printer highlight-matching-bracket position)
                 (flush-output)
-                (input-loop channel current-line show-prompt? position)]
+                (input-loop channel current-line show-prompt? position current-row)]
             [(list 'cursor-position row column)
-                (input-loop channel current-line show-prompt? current-position)]
+                (input-loop channel current-line show-prompt? current-position row)]
     )))
 
 (define (main)
     (let ([p (create-repl-place)])
-        (input-loop p '() #t 0)))
+        (input-loop p '() #t 0 1)))
 
 (main)
