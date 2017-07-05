@@ -8,7 +8,9 @@
     racket/hash)
 
 (define bracket-colours #(68 100 160))
-(define (get-bracket-colour x) (vector-ref bracket-colours (modulo x (vector-length bracket-colours))))
+(define (get-bracket-colour x) 
+    (vector-ref bracket-colours 
+        (modulo (if (< x 0) 0 x) (vector-length bracket-colours))))
 
 (define (set-colour acc character x) 
     (add-to-acc (add-to-acc acc (string->list (format "\e[38;5;~am" x))) character))
@@ -90,7 +92,7 @@
 
 (define (get-used-colour result line lines)
     (if (eqv? (match-result-line-index result) (saved-line-index line))
-        (hash-ref (saved-line-used-colours line) (match-result-character-index))
+        (hash-ref (saved-line-used-colours line) (match-result-character-index result))
         (if (null? lines)
             invalid-bracket-colour
             (get-used-colour result (first lines) (rest lines)))))
@@ -195,23 +197,28 @@
                     (let* ([updated-line
                                 (struct-copy saved-line line
                                     [characters (cons c (saved-line-characters line))]
-                                    [bracket-counter (add1 (saved-line-bracket-counter line))]
+                                    [bracket-counter (sub1 (saved-line-bracket-counter line))]
                                     [length (add1 (saved-line-length line))])]
-                            [result (can-match? c index (saved-line-index updated-line) (accumulated-lines-lines lines))])
+                            [result (can-match? c index (saved-line-index updated-line) updated-line (accumulated-lines-lines lines))])
                         (if (match-result-success result)
                             (let-values ([(current previous) 
                                     (store-match index result updated-line (accumulated-lines-lines lines))])
-                                (let* ([colour (get-used-colour result updated-line lines)]
+                                (let* ([colour (get-used-colour result current lines)]
                                         [coloured-line
-                                            (struct-copy saved-line updated-line
-                                                [used-colours (hash-set (saved-line-used-colours line)
+                                            (struct-copy saved-line current
+                                                [used-colours (hash-set (saved-line-used-colours current)
                                                     index colour)])]
                                         [acc (set-colour acc c colour)]
                                         [updated-acc-lines 
                                             (struct-copy accumulated-lines lines
                                                 [lines previous])])
                                     (lex (rest characters) acc (add1 index) coloured-line updated-acc-lines)))
-                            (lex (rest characters) acc (add1 index) updated-line lines)))
+                            (let ([coloured-line 
+                                        (struct-copy saved-line updated-line
+                                            [used-colours (hash-set (saved-line-used-colours updated-line)
+                                                index invalid-bracket-colour)])]
+                                    [acc (set-colour acc c invalid-bracket-colour)])
+                                (lex (rest characters) acc (add1 index) coloured-line lines))))
 
                     ]
                 [(? char-numeric?)
@@ -304,6 +311,103 @@
                 (check-equal? (saved-line-characters line) (reverse src))
                 (check-equal? (saved-line-bracket-counter line) 1)
                 (check-equal? (saved-line-used-colours line) (hash 0 (get-bracket-colour 0)))
+                (check-equal? (saved-line-length line) (length src)))))
+
+    (test-case 
+        "can lex a single )"
+        (let* ([src (string->list ")")]
+                [line (make-empty-saved-line)]
+                [lines (make-empty-accumulated-lines)])
+            (let-values ([(acc line) (lex src '() 0 line lines)])
+                (check-equal? (flatten acc) (flatten (set-colour '() src invalid-bracket-colour)))
+                (check-equal? (saved-line-characters line) (reverse src))
+                (check-equal? (saved-line-bracket-counter line) -1)
+                (check-equal? (saved-line-used-colours line) (hash 0 invalid-bracket-colour))
+                (check-equal? (saved-line-length line) (length src)))))
+
+    (test-case 
+        "can lex a matching bracket pair"
+        (let* ([src (string->list "()")]
+                [line (make-empty-saved-line)]
+                [lines (make-empty-accumulated-lines)]
+                [colour (get-bracket-colour 0)])
+            (let-values ([(acc line) (lex src '() 0 line lines)])
+                (check-equal? (flatten acc) (flatten 
+                        (set-colour 
+                            (set-colour '() (first src) colour)
+                            (second src)
+                            colour)))
+                (check-equal? (saved-line-characters line) (reverse src))
+                (check-equal? (saved-line-bracket-counter line) 0)
+                (check-equal? (saved-line-used-colours line) (hash 0 colour 1 colour))
+                (check-equal? (saved-line-length line) (length src)))))
+
+    (test-case 
+        "can lex an unbalanced bracket pair"
+        (let* ([src (string->list ")(")]
+                [line (make-empty-saved-line)]
+                [lines (make-empty-accumulated-lines)]
+                [colour1 invalid-bracket-colour]
+                [colour2 (get-bracket-colour 0)])
+            (let-values ([(acc line) (lex src '() 0 line lines)])
+                (check-equal? (flatten acc) (flatten 
+                        (set-colour 
+                            (set-colour '() (first src) colour1)
+                            (second src)
+                            colour2)))
+                (check-equal? (saved-line-characters line) (reverse src))
+                (check-equal? (saved-line-bracket-counter line) 0)
+                (check-equal? (saved-line-used-colours line) (hash 0 colour1 1 colour2))
+                (check-equal? (saved-line-length line) (length src)))))
+
+    (test-case 
+        "can lex an unmatched bracket pair"
+        (let* ([src (string->list "(]")]
+                [line (make-empty-saved-line)]
+                [lines (make-empty-accumulated-lines)]
+                [colour1 (get-bracket-colour 0)]
+                [colour2 invalid-bracket-colour])
+            (let-values ([(acc line) (lex src '() 0 line lines)])
+                (check-equal? (flatten acc) (flatten 
+                        (set-colour 
+                            (set-colour '() (first src) colour1)
+                            (second src)
+                            colour2)))
+                (check-equal? (saved-line-characters line) (reverse src))
+                (check-equal? (saved-line-bracket-counter line) 0)
+                (check-equal? (saved-line-used-colours line) (hash 0 colour1 1 colour2))
+                (check-equal? (saved-line-length line) (length src)))))
+
+    (test-case 
+        "can lex a more complicated bracket sequence"
+        (let* ([src (string->list "((())(]))]]][")]
+                [line (make-empty-saved-line)]
+                [lines (make-empty-accumulated-lines)]
+                [colours (list 
+                    (get-bracket-colour 0)
+                    (get-bracket-colour 1)
+                    (get-bracket-colour 2)
+                    (get-bracket-colour 2)
+                    (get-bracket-colour 1)
+                    (get-bracket-colour 1)
+                    invalid-bracket-colour
+                    (get-bracket-colour 1)
+                    (get-bracket-colour 0)
+                    invalid-bracket-colour
+                    invalid-bracket-colour
+                    invalid-bracket-colour
+                    (get-bracket-colour 0))])
+                    
+            (let-values ([(acc line) (lex src '() 0 line lines)])
+                (check-equal? (flatten acc) (flatten
+                    (for/fold ([acc '()]) ([i src] [c colours])
+                        (set-colour acc i c))))
+                (check-equal? (saved-line-characters line) (reverse src))
+                (check-equal? (saved-line-bracket-counter line) -3)
+                (check-equal? (saved-line-used-colours line)
+                    (make-immutable-hash 
+                        (for/list ([i (in-range (length src))] [j colours])
+                            (cons i j)))) 
                 (check-equal? (saved-line-length line) (length src)))))
         
 )
