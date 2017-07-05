@@ -5,262 +5,12 @@
     racket/list
     racket/class
     racket/match
-    racket/hash)
+    racket/hash
+    "../editor/lexer.rkt"
+    "../editor/lexer-colours.rkt")
 
-(define bracket-colours #(68 100 160))
-(define (get-bracket-colour x) 
-    (vector-ref bracket-colours 
-        (modulo (if (< x 0) 0 x) (vector-length bracket-colours))))
-
-(define (set-colour acc character x) 
-    (add-to-acc (add-to-acc acc (string->list (format "\e[38;5;~am" x))) character))
-
-(define (highlight acc character)
-    (add-to-acc 
-        (add-to-acc 
-            (add-to-acc acc (
-                   string->list "\e[48;5;183m")) 
-            character) 
-        normal))
-
-(define normal (string->list "\e[0m"))
-
-(define constant-colour 82)
-(define string-colour 173)
-(define special-form-colour 125)
-(define identifier-colour 27)
-(define unknown-colour 211)
-(define invalid-bracket-colour 52)
-
-(define (char-delimiter? c)
-    (match c
-        [#\( #t]
-        [#\) #t]
-        [#\[ #t]
-        [#\] #t]
-        [_ #f]))
-
-(define (char-identifier? c)
-    (not
-        (or (char-whitespace? c)
-            (char-delimiter? c))))
-
-(define (add-to-acc acc thing)
-    (if (null? acc)
-        thing
-        (cons acc thing)))
-
-(define (char-not-quote? c)
-    (not (eqv? #\" c)))
-
-(struct saved-line (
-    index ; integer index
-    characters ;list of printable characters to be lexed again
-    matching-pairs ;hash-set of character index to (line-index, character-index)
-    bracket-counter ; sum of #-of-openers and #-of-closers
-    used-colours ;hash-set of character index to colour 
-    length ;cached length
-) #:transparent)
-
-(define (make-empty-saved-line)
-    (saved-line 
-        0 
-        '() 
-        (make-immutable-hash)
-        0
-        (make-immutable-hash)
-        0))
-
-(struct accumulated-lines (
-        lines ;list of previous lines
-        bracket-counter ;sum of all lines' bracket counters
-))
-
-(define (make-empty-accumulated-lines)
-    (accumulated-lines 
-        '()
-        0))
-
-(struct match-result (success character-index line-index orig-line-index) #:transparent)
-
-(define (is-matching? a b)
-    (match a
-        [#\( (eqv? b #\))]
-        [#\[ (eqv? b #\])]
-        [#\{ (eqv? b #\})]
-        [_ #f]))
-
-(define (get-used-colour result line lines)
-    (if (eqv? (match-result-line-index result) (saved-line-index line))
-        (hash-ref (saved-line-used-colours line) (match-result-character-index result))
-        (if (null? lines)
-            invalid-bracket-colour
-            (get-used-colour result (first lines) (rest lines)))))
-
-(define (get-character-at index line)
-    ;characters are stored in reverse order
-    ;(printf "gca ~v ~v~n" index (saved-line-length line))
-    (list-ref (saved-line-characters line) (- (saved-line-length line) index)))
-
-;starting at character index in line, look for the appropriate ( or [
-;that closes that character
-
-(define (can-match? c index orig-line-index line lines)
-    (if (< index 1)
-        (if (null? lines)
-            (match-result #f 0 0 0)
-            (let ([next-line (first lines)])
-                (can-match? c (id (saved-line-length next-line)) orig-line-index next-line (rest lines))))
-        (if (is-matching? 
-                (get-character-at index line)
-                c)
-            (if (hash-has-key? (saved-line-matching-pairs line) (sub1 index))
-                (can-match? c (sub1 index) orig-line-index line lines)
-                (if (hash-has-key? (saved-line-matching-pairs line) (foreign-key (sub1 index)))
-                    (can-match? c (sub1 index) orig-line-index line lines)
-                    (match-result #t (sub1 index) (saved-line-index line) orig-line-index)))
-            (can-match? c (sub1 index) orig-line-index line lines))))
-
-(struct matching-pair (line character) #:transparent)
-(struct foreign-key (index) #:transparent)
-
-(define (update-previous result ch-id ln-id previous-lines)
-    (if (eqv? (match-result-line-index result) 
-                (saved-line-index (first previous-lines)))
-        (let ([updated-line (struct-copy saved-line (first previous-lines)
-            [matching-pairs 
-                (hash-set* (saved-line-matching-pairs (first previous-lines))
-                    (foreign-key (match-result-character-index result))
-                        (matching-pair
-                            ln-id ch-id))])])
-            (cons updated-line (rest previous-lines)))
-        (let ([previous (update-previous result ch-id ln-id (rest previous-lines))])
-            (cons (first previous-lines) previous))))
-
-(define (store-match character-index result current-line previous-lines)
-    ;store closer first, then opener possibly on other line
-    (if (eqv? (match-result-orig-line-index result) (saved-line-index current-line))
-        (let ([updated-line (struct-copy saved-line current-line
-                [matching-pairs 
-                    (let ([hs
-                        (hash-set* (saved-line-matching-pairs current-line) 
-                            character-index 
-                                (matching-pair 
-                                    (match-result-line-index result) 
-                                    (match-result-character-index result)))])
-                        
-                        (if (eqv? (saved-line-index current-line) (match-result-line-index result))
-                            (hash-set* hs
-                                (match-result-character-index result)
-                                    (matching-pair 
-                                        (saved-line-index current-line) 
-                                        character-index))
-                            hs))])]
-                [previous 
-                    (if (null? previous-lines) 
-                        '() 
-                        (if (eqv? (match-result-line-index result) (saved-line-index current-line))
-                            previous-lines
-                            (update-previous result character-index 
-                                (saved-line-index current-line) previous-lines)))])
-            (values updated-line previous))
-        (let-values ([(current previous) 
-                        (store-match character-index result (first previous-lines) (rest previous-lines))])
-            (values current-line (cons current previous)))))
                 
 
-
-(define (lex characters acc index line lines)
-    (if (null? characters)
-        (values acc line)
-        (let ([c (first characters)])
-            (match c
-                [(or #\( #\[)
-                    ;opener
-                    (let ([colour (get-bracket-colour 
-                            (+ (accumulated-lines-bracket-counter lines)
-                                (saved-line-bracket-counter line)))])
-                        (let ([updated-line 
-                                (struct-copy saved-line line 
-                                        [characters (cons c (saved-line-characters line))]
-                                        [bracket-counter (add1 (saved-line-bracket-counter line))]
-                                        [length (add1 (saved-line-length line))]
-                                        [used-colours (hash-set (saved-line-used-colours line)
-                                                index colour)]
-                                    )]
-                                [acc (set-colour acc c colour)])
-                            (lex (rest characters) acc (add1 index) updated-line lines)))
-                    ]
-                [(or #\) #\])
-                    ;closer
-
-                    (let* ([updated-line
-                                (struct-copy saved-line line
-                                    [characters (cons c (saved-line-characters line))]
-                                    [bracket-counter (sub1 (saved-line-bracket-counter line))]
-                                    [length (add1 (saved-line-length line))])]
-                            [result (can-match? c index (saved-line-index updated-line) updated-line (accumulated-lines-lines lines))])
-                        (if (match-result-success result)
-                            (let-values ([(current previous) 
-                                    (store-match index result updated-line (accumulated-lines-lines lines))])
-                                (let* ([colour (get-used-colour result current lines)]
-                                        [coloured-line
-                                            (struct-copy saved-line current
-                                                [used-colours (hash-set (saved-line-used-colours current)
-                                                    index colour)])]
-                                        [acc (set-colour acc c colour)]
-                                        [updated-acc-lines 
-                                            (struct-copy accumulated-lines lines
-                                                [lines previous])])
-                                    (lex (rest characters) acc (add1 index) coloured-line updated-acc-lines)))
-                            (let ([coloured-line 
-                                        (struct-copy saved-line updated-line
-                                            [used-colours (hash-set (saved-line-used-colours updated-line)
-                                                index invalid-bracket-colour)])]
-                                    [acc (set-colour acc c invalid-bracket-colour)])
-                                (lex (rest characters) acc (add1 index) coloured-line lines))))
-
-                    ]
-                [(? char-numeric?)
-                    ;constant number
-                    (let-values ([(number remaining) (splitf-at characters char-numeric?)])
-                        (let ([updated-line
-                            (struct-copy saved-line line
-                                [characters (for/fold ([acc (saved-line-characters line)]) ([i number]) (cons i acc))]
-                                [length (+ (saved-line-length line) (length number))])]
-                              [acc (set-colour acc number constant-colour)])
-                            (lex (drop characters (length number)) acc (+ index (length number)) updated-line lines)))
-                        ;colour
-                        ;update line
-                        ;lex
-                    ]
-                [(? char-whitespace?)
-                    ;single whitespace character
-                    (let ([updated-line
-                        (struct-copy saved-line line
-                            [characters (cons c (saved-line-characters line))]
-                            [length (add1 (saved-line-length line))])])
-                        (lex (rest characters) acc (add1 index) updated-line lines))
-                    ]
-                [#\"
-                    ;constant string
-                    (void)
-                    ]
-                [_
-                    ;identifier
-                    (let-values ([(identifier remaining) (splitf-at characters char-identifier?)])
-                        (let* ([symbol (string->symbol (list->string identifier))]
-                                [colour unknown-colour]
-                                [updated-line 
-                                    (struct-copy saved-line line
-                                        [characters (for/fold ([acc (saved-line-characters line)])
-                                                            ([i identifier])
-                                                        (cons i acc))]
-                                        [length (+ (saved-line-length line) (length identifier))])]
-                                [acc (set-colour acc identifier colour)])
-                            (lex (drop characters (length identifier)) acc (+ index (length identifier)) updated-line lines)))
-                            
-                    ]))))
 #|
 (define pretty-printer%
     (class object%
@@ -286,7 +36,7 @@
         (let* ([src (string->list "identifier")]
                 [line (make-empty-saved-line)]
                 [lines (make-empty-accumulated-lines)])
-            (let-values ([(acc line) (lex src '() 0 line lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
                 (check-equal? acc (set-colour '() src unknown-colour))
                 (check-equal? (saved-line-characters line) (reverse src))
                 (check-equal? (saved-line-length line) (length src)))))
@@ -296,7 +46,7 @@
         (let* ([src (string->list "1234")]
                 [line (make-empty-saved-line)]
                 [lines (make-empty-accumulated-lines)])
-            (let-values ([(acc line) (lex src '() 0 line lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
                 (check-equal? acc (set-colour '() src constant-colour))
                 (check-equal? (saved-line-characters line) (reverse src))
                 (check-equal? (saved-line-length line) (length src)))))
@@ -306,7 +56,7 @@
         (let* ([src (string->list "(")]
                 [line (make-empty-saved-line)]
                 [lines (make-empty-accumulated-lines)])
-            (let-values ([(acc line) (lex src '() 0 line lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
                 (check-equal? (flatten acc) (flatten (set-colour '() src (get-bracket-colour 0))))
                 (check-equal? (saved-line-characters line) (reverse src))
                 (check-equal? (saved-line-bracket-counter line) 1)
@@ -318,7 +68,7 @@
         (let* ([src (string->list ")")]
                 [line (make-empty-saved-line)]
                 [lines (make-empty-accumulated-lines)])
-            (let-values ([(acc line) (lex src '() 0 line lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
                 (check-equal? (flatten acc) (flatten (set-colour '() src invalid-bracket-colour)))
                 (check-equal? (saved-line-characters line) (reverse src))
                 (check-equal? (saved-line-bracket-counter line) -1)
@@ -331,7 +81,7 @@
                 [line (make-empty-saved-line)]
                 [lines (make-empty-accumulated-lines)]
                 [colour (get-bracket-colour 0)])
-            (let-values ([(acc line) (lex src '() 0 line lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
                 (check-equal? (flatten acc) (flatten 
                         (set-colour 
                             (set-colour '() (first src) colour)
@@ -349,7 +99,7 @@
                 [lines (make-empty-accumulated-lines)]
                 [colour1 invalid-bracket-colour]
                 [colour2 (get-bracket-colour 0)])
-            (let-values ([(acc line) (lex src '() 0 line lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
                 (check-equal? (flatten acc) (flatten 
                         (set-colour 
                             (set-colour '() (first src) colour1)
@@ -367,7 +117,7 @@
                 [lines (make-empty-accumulated-lines)]
                 [colour1 (get-bracket-colour 0)]
                 [colour2 invalid-bracket-colour])
-            (let-values ([(acc line) (lex src '() 0 line lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
                 (check-equal? (flatten acc) (flatten 
                         (set-colour 
                             (set-colour '() (first src) colour1)
@@ -398,7 +148,7 @@
                     invalid-bracket-colour
                     (get-bracket-colour 0))])
                     
-            (let-values ([(acc line) (lex src '() 0 line lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
                 (check-equal? (flatten acc) (flatten
                     (for/fold ([acc '()]) ([i src] [c colours])
                         (set-colour acc i c))))
@@ -409,6 +159,47 @@
                         (for/list ([i (in-range (length src))] [j colours])
                             (cons i j)))) 
                 (check-equal? (saved-line-length line) (length src)))))
+
+
+    (test-case 
+        "can lex an identifier in brackets"
+        (let* ([src (string->list "(test)")]
+                [line (make-empty-saved-line)]
+                [lines (make-empty-accumulated-lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
+                (check-equal? (flatten acc) (flatten 
+                    (set-colour 
+                        (set-colour 
+                            (set-colour '() #\( (get-bracket-colour 0))
+                            (string->list "test")
+                            unknown-colour)
+                        #\)
+                        (get-bracket-colour 0))))
+                (check-equal? (saved-line-characters line) (reverse src))
+                (check-equal? (saved-line-bracket-counter line) 0)
+                (check-equal? (saved-line-used-colours line) 
+                    (hash 0 (get-bracket-colour 0) 5 (get-bracket-colour 0)))
+                (check-equal? (saved-line-length line) (length src)))))
+
+    
+    (test-case 
+        "can lex a matching bracket pair on multiple lines"
+        (let* ([src0 (string->list "(")]
+                [src1 (string->list ")")]
+                [line (make-empty-saved-line 0)]
+                [lines (make-empty-accumulated-lines)])
+            (let-values ([(acc line0 lines) (lex src0 '() 0 line lines)])
+                (let-values ([(acc line1 lines) (lex src1 '() 0 (make-empty-saved-line 1) (add-line-to-accumulated line0 lines))])
+                    (let ([line0 (first (accumulated-lines-lines lines))])
+                        (check-equal? (flatten acc) (flatten (set-colour '() (first src1) (get-bracket-colour 0))))
+                        (check-equal? (saved-line-bracket-counter line0) 1)
+                        (check-equal? (saved-line-bracket-counter line1) -1)
+                        (check-equal? (saved-line-used-colours line0) (hash 0 (get-bracket-colour 0)))
+                        (check-equal? (saved-line-used-colours line1) (hash 0 (get-bracket-colour 0)))
+                        (check-equal? (saved-line-length line0) (length src0))
+                        (check-equal? (saved-line-length line1) (length src1))
+                        (check-equal? (saved-line-matching-pairs line0) (hash (foreign-key 0) (matching-pair 1 0)))
+                        (check-equal? (saved-line-matching-pairs line1) (hash 0 (matching-pair 0 0))))))))
         
 )
 
