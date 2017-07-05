@@ -38,12 +38,18 @@ SOFTWARE.
     (let ([line (place-channel-get channel)])
         (match line
             ['clear 
+                (printf "\e[6n")
+                (flush-output)
                 (send pretty-printer reset)
                 (input-loop channel '() #t 0 current-row)]
             ['newline 
+                (printf "\e[6n")
+                (flush-output)
                 (send pretty-printer new-line)
-                (input-loop channel '() #t 0 current-row)]
+                (input-loop channel '() #t 0 (add1 current-row))]
             [(list 'finished line)
+                (printf "\e[6n")
+                (flush-output)
                 (let* ([code (read (open-input-string line))])    
                     (cond
                         [(list? code) (exec code)]
@@ -53,13 +59,17 @@ SOFTWARE.
                 (input-loop channel '() #t current-position current-row)]
 
             [(list 'incomplete line)
+                (printf "\e[6n")
+                (flush-output)
+                ;(displayln "incomplete")
                 (send pretty-printer new-line)
-                (send pretty-printer print-line line #f current-position current-row)
-                (input-loop channel line #f current-position current-row)]
+                (send pretty-printer print-line line #f current-position (add1 current-row))
+                (input-loop channel line #f current-position (add1 current-row))]
             [(list 'update show-prompt? line)
                 (printf "\e[6n")
                 (flush-output)
                 (send pretty-printer print-line line show-prompt? current-position current-row)
+                (send pretty-printer highlight-matching-bracket current-position)
                 (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))
@@ -72,6 +82,14 @@ SOFTWARE.
 
 (define (main)
     (let ([p (create-repl-place)])
+        (printf "\e[6n")
         (input-loop p '() #t 0 1)))
 
+(define (test i)
+    (printf "\e[~a;H" i)
+    (printf "~a" i)
+    (flush-output)
+    (sleep 1)
+    (test (add1 i)))
+;(test 1)
 (main)
