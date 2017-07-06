@@ -24,19 +24,28 @@
     (vector-ref bracket-colours 
         (modulo (if (< x 0) 0 x) (vector-length bracket-colours))))
 
-(define (set-colour [acc : (Listof Char)] 
+#|(define (set-colour [acc : (Listof LexedString)] 
                     [characters : (U Char (Listof Char))]
-                    [colour : Integer]) : (Listof Char)
+                    [colour : Integer]) : (Listof LexedString)
     (add-to-acc 
-        (add-to-acc acc ;(reverse
-                    (string->list (format "\e[38;5;~am" colour)));)
+        (add-to-acc acc 
+                    (string->list (format "\e[38;5;~am" colour)))
         (if (char? characters)
             (list characters)
-            characters)))
+            characters)))|#
+
+(define (set-colour 
+            [characters : (U Char (Listof Char))]
+            [colour : Integer]) : (Listof Char)
+    (let ([colour (reverse (string->list (format "\e[38;5;~am" colour)))])
+        (if (char? characters)
+            (cons characters colour)
+            (for/fold ([acc colour]) ([i characters])
+                (cons i acc)))))
 
 (define (highlight 
-            [acc : (Listof Char)] 
-            [character : Char]) : (Listof Char)
+            [acc : (Listof LexedString)] 
+            [character : Char]) : (Listof LexedString)
     (add-to-acc 
         (add-to-acc 
             (add-to-acc acc (string->list "\e[48;5;183m")) 
@@ -56,13 +65,35 @@
         (or (char-whitespace? c)
             (char-delimiter? c))))
 
+(struct highlight-point (
+    [line-index : Integer]
+    [character-index : Integer]
+    [characters : (Listof Char)] ; the bracket character and its colour escape sequence
+)
+#:transparent)
+
+(struct autocomplete-point (
+    [characters : (Listof Char)] ; the identifier and its colour escape sequence
+)
+#:transparent)
+
+(define-type LexedString (U  highlight-point
+                    autocomplete-point
+                    (Listof Char)))
+
 (define (add-to-acc 
-            [acc : (Listof Char)] 
-            [thing : (Listof Char)]) : (Listof Char)
+            [acc : (Listof LexedString)] 
+            [thing : LexedString]) 
+            : LexedString
     ;(if (null? acc)
     ;    thing
-        (for/fold ([acc acc]) ([c thing])
-            (cons c acc)));)
+    (cons thing acc))
+    #|(cond 
+        [(highlight-point? thing) (cons thing acc)]
+        [(autocomplete-point? thing) (cons thing acc)]
+        [else 
+            (for/fold ([acc acc]) ([c thing])
+                (cons c acc))]))|#
 
 (define (char-not-quote? [c : Char]) : Boolean
     (not (eqv? #\" c)))
@@ -90,6 +121,7 @@
     [bracket-counter : Integer] ; sum of #-of-openers and #-of-closers
     [used-colours : (HashTable Integer Integer)];hash-set of character index to colour 
     [length : Integer];cached length
+    [lexed : (Listof LexedString)]
 ) #:transparent)
 
 (define (make-empty-saved-line [index : Integer 0]) : saved-line
@@ -99,7 +131,8 @@
         (make-immutable-hash)
         0
         (make-immutable-hash)
-        0))
+        0
+        '()))
 
 (struct accumulated-lines (
         [lines : (Listof saved-line)] ;list of previous lines
@@ -126,13 +159,6 @@
 (define (make-empty-highlighted-pair) : highlighted-pair
     (highlighted-pair (matching-pair -1 -1) (matching-pair -1 -1)))
 
-(define (should-highlight? 
-            [line-index : Integer] 
-            [character-index : Integer]
-            [highlighted : highlighted-pair]) : Boolean
-    (let ([pair (matching-pair line-index character-index)])
-        (or (equal? pair (highlighted-pair-first highlighted))
-            (equal? pair (highlighted-pair-second highlighted)))))
 
 (define (is-matching? 
             [a : Char] 
@@ -243,13 +269,19 @@
 
 ;TODO: for identifiers add an expansion point at the end that
 ;allows an expander like autocomplete to add text
+
+#|
+(highlight-point (set-colour ... #\())
+
+(expand-point (set-colour ... identifier))
+|#
 (define (lex 
             [characters : (Listof Char)]
-            [acc : (Listof Char)]
+            [acc : (Listof LexedString)]
             [index : Integer] 
             [line : saved-line]
             [lines : accumulated-lines]
-            [highlighted-pair : highlighted-pair]) : (Values (Listof Char) saved-line accumulated-lines)
+            [highlighted-pair : highlighted-pair]) : (Values (Listof LexedString) saved-line accumulated-lines)
     (if (null? characters)
         (values acc line lines)
         (let ([c (first characters)])
@@ -267,10 +299,10 @@
                                         [used-colours (hash-set (saved-line-used-colours line)
                                                 index colour)]
                                     )]
-                                [acc
-                                    (if (should-highlight? (saved-line-index line) index highlighted-pair)
+                                [acc (add-to-acc acc (highlight-point (saved-line-index line) index (set-colour c colour)))])
+                                    #|(if (should-highlight? (saved-line-index line) index highlighted-pair)
                                         (highlight acc (set-colour '() c colour)) 
-                                        (set-colour acc c colour))])
+                                        (set-colour acc c colour))])|#
                             (lex (rest characters) acc (add1 index) updated-line lines highlighted-pair)))
                     ]
                 [(or #\) #\])
@@ -290,10 +322,10 @@
                                             (struct-copy saved-line current
                                                 [used-colours (hash-set (saved-line-used-colours current)
                                                     index colour)])]
-                                        [acc 
-                                            (if (should-highlight? (saved-line-index line) index highlighted-pair)
+                                        [acc (add-to-acc acc (highlight-point (saved-line-index line) index (set-colour c colour)))]
+                                            #|(if (should-highlight? (saved-line-index line) index highlighted-pair)
                                                 (highlight acc (set-colour '() c colour))
-                                                (set-colour acc c colour))]
+                                                (set-colour acc c colour))]|#
                                         [updated-acc-lines 
                                             (struct-copy accumulated-lines lines
                                                 [lines previous])])
@@ -302,7 +334,8 @@
                                         (struct-copy saved-line updated-line
                                             [used-colours (hash-set (saved-line-used-colours updated-line)
                                                 index invalid-bracket-colour)])]
-                                    [acc (set-colour acc c invalid-bracket-colour)])
+                                    [acc (add-to-acc acc (highlight-point (set-colour c invalid-bracket-colour)))])
+                                    #|(set-colour acc c invalid-bracket-colour)])|#
                                 (lex (rest characters) acc (add1 index) coloured-line lines highlighted-pair))))
 
                     ]
@@ -315,7 +348,7 @@
                                                     ([i : Char number]) 
                                                 (cons i acc))]
                                 [length (+ (saved-line-length line) (length number))])]
-                              [acc (set-colour acc number constant-colour)])
+                              [acc (add-to-acc acc (set-colour number constant-colour))])
                             (lex (drop characters (length number)) acc (+ index (length number)) updated-line lines highlighted-pair)))
                     ]
                 [(? char-whitespace?)
@@ -337,7 +370,7 @@
                         (let* ([quoted
                                 (if add-closing-quote? (flatten (list #\" string #\"))
                                     (flatten (list #\" string)))]
-                               [acc (set-colour acc quoted string-colour)]
+                               [acc (add-to-acc acc (set-colour quoted string-colour))]
                                [updated-line
                                 (struct-copy saved-line line
                                     [characters (for/fold ([acc : (Listof Char) (saved-line-characters line)])
@@ -362,7 +395,7 @@
                                                             ([i : Char identifier])
                                                         (cons i acc))]
                                         [length (+ (saved-line-length line) (length identifier))])]
-                                [acc (set-colour acc identifier colour)])
+                                [acc (add-to-acc acc (autocomplete-point (set-colour identifier colour)))])
                             (lex (drop characters (length identifier)) acc (+ index (length identifier)) updated-line lines highlighted-pair)))
                             
                     ]))))

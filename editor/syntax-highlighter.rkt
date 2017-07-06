@@ -6,6 +6,7 @@
 (require 
     racket/list
     racket/class
+    racket/match
     (except-in "lexer.rkt" flatten)
     "../terminal.rkt"
     "../env.rkt")
@@ -46,6 +47,52 @@
     (printf "\e[~aG" (+ (if show-prompt? 3 1) column))
     (flush-output))
 
+(define (expand-highlight 
+            acc
+            characters) 
+    (let* (
+            [unhighlight (foldl cons acc (reverse (string->list "\e[0m")))]
+            [characters (foldl cons unhighlight characters)]
+            [highlighted (foldl cons characters (reverse (string->list "\e[48;5;183m")))]
+            )
+        highlighted))
+
+(define (should-highlight? 
+            line-index 
+            character-index
+            highlighted) 
+    (let ([pair (matching-pair line-index character-index)])
+        (or (equal? pair (highlighted-pair-first highlighted))
+            (equal? pair (highlighted-pair-second highlighted)))))
+
+
+(define (expand lexed current-highlighted-pair)
+    (reverse 
+        (for/fold ([acc '()]) ([i lexed])
+            (match i
+                [(highlight-point line-index character-index characters) 
+                    #|(for/fold ([acc acc]) ([j x])
+                        (cons j acc))]|#
+                        (if (should-highlight? line-index character-index current-highlighted-pair)
+                            (expand-highlight acc characters)
+                            (for/fold ([acc acc]) ([j characters])
+                                (cons j acc)))]
+                [(autocomplete-point x) 
+                    ;(cons x acc)]
+                    (for/fold ([acc acc]) ([j x])
+                        (cons j acc))]
+                [ (? list?)
+                    (for/fold ([acc acc]) ([j i])
+                        (cons j acc))]
+                [_ (cons i acc)]
+
+            )))
+            )
+                
+                
+                
+                ;(cons i acc)]))))
+
 (define pretty-printer%
     (class object%
         (super-new)
@@ -56,6 +103,15 @@
         (define cached-characters '())
         (define highlighted (make-empty-highlighted-pair))
 
+        (define (do-print acc column);characters column row)
+                ;(printf "~n~v~n" acc)
+                (let* ([expanded (expand acc highlighted)]
+                        [flattened (flatten expanded)]
+                        [string (list->string (reverse flattened))]
+                        [indented (string-append (make-string (max 0 (+ (if (> indent 0) 2 0) indent)) #\space) string)])
+                    (write-line indented (+ (if (> indent 0) 2 0) indent column) show-prompt?)))
+;                    (values line characters))))
+
         (define/public (print-line characters show-promptt? column row)
             (let-values ([(acc line lines)
                     (lex 
@@ -65,12 +121,10 @@
                         (make-empty-saved-line (get-next-line-number current-accumulated-lines))
                         current-accumulated-lines
                         highlighted)])
-                (let* ([flattened (flatten acc)]
-                        [string (list->string (reverse flattened))]
-                        [indented (string-append (make-string (max 0 (+ (if (> indent 0) 2 0) indent)) #\space) string)])
-                    (set! current-line line)
-                    (set! cached-characters characters)
-                    (write-line indented (+ (if (> indent 0) 2 0) indent column) show-prompt?))))
+            ;(let-values ([(line characters) (do-print characters column (get-next-line-number current-accumulated-lines))])
+                (do-print acc column)
+                (set! current-line line)
+                (set! cached-characters characters)))
 
         (define/public (new-line)
             ;lex one last time to get the proper matches so there aren't
@@ -81,8 +135,11 @@
                         '() 
                         0
                         (make-empty-saved-line (get-next-line-number current-accumulated-lines))
-                        current-accumulated-lines)])
-                (set! current-line line)
+                        current-accumulated-lines
+                        highlighted)])
+                (set! current-line 
+                    (struct-copy saved-line line
+                        [lexed acc]))
                 (set! current-accumulated-lines (add-line-to-accumulated current-line lines)))
                     
             (set! show-prompt? #f)
@@ -99,22 +156,32 @@
             (set! indent 0))
 
 
-        (define (highlight line-index character-index)
+        (define (highlight line-index)
             (let ([line (findf 
                             (lambda (line) (eqv? (saved-line-index line) line-index))
                             (accumulated-lines-lines current-accumulated-lines))])
                 (when line
                     (printf "\e[~a;H" (add1 line-index))
-                    (printf "\e[~aG" character-index)
+                    (do-print (saved-line-lexed line) 0))))
+                    ;(do-print (saved-line-characters line) 0 line-index))))
+                    #|(printf "\e[~aG" character-index)
                     (printf "\e[48;5;183m")
-                    (display "("))))
+                    (display "("))))|#
 
         (define (highlight-pair key line matched-pair)
             (if (integer? key)
-                (set! highlighted (highlighted-pair (matching-pair line key) matched-pair))
-                ;(begin
-                 ;   (highlight line key)
-                 ;   (highlight (matching-pair-line matching-pair) (matching-pair-character matching-pair)))
+                (begin
+                    (set! highlighted (highlighted-pair (matching-pair line key) matched-pair))
+                    (let ([current-line-index (saved-line-index current-line)]
+                           [first-line-index (matching-pair-line (highlighted-pair-first highlighted))]
+                           [second-line-index (matching-pair-line (highlighted-pair-second highlighted))])
+                        (when (not (equal? current-line-index first-line-index))
+                            (highlight first-line-index)
+                            (printf "\e[~a;H" (add1 current-line-index)))
+
+                        (when (not (equal? current-line-index second-line-index))
+                            (highlight second-line-index)
+                            (printf "\e[~a;H" (add1 current-line-index)))))
                 (void)
             ))
 
@@ -129,7 +196,5 @@
                         (if (hash-has-key? matching-pairs (foreign-key offset))
                             (void)
                             (void))))))
-                            ;(display "    can highlight\n")
-                            ;(printf "     ~v ~v~n" offset matching-pairs))))))
 
     ))
