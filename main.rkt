@@ -29,7 +29,8 @@ SOFTWARE.
 (require "sh-lang.rkt")
 (require racket/place)
 (require "repl-place.rkt")
-(require "syntax-colourizer.rkt")
+;(require "syntax-colourizer.rkt")
+(require "editor/syntax-highlighter.rkt")
 
 (define pretty-printer (new pretty-printer%))
 
@@ -69,11 +70,11 @@ SOFTWARE.
                 (printf "\e[6n")
                 (flush-output)
                 (send pretty-printer print-line line show-prompt? current-position current-row)
-                (send pretty-printer highlight-matching-bracket current-position)
+                ;(send pretty-printer highlight-matching-bracket current-position)
                 (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))
-                (send pretty-printer highlight-matching-bracket position)
+                ;(send pretty-printer highlight-matching-bracket position)
                 (flush-output)
                 (input-loop channel current-line show-prompt? position current-row)]
             [(list 'cursor-position row column)

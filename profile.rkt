@@ -31,3 +31,6 @@ SOFTWARE.
         (let ([profile (open-output-file user-profile)])
             (close-output-port profile))))
 
+
+(define (print-prompt)
+    (display "λ "))

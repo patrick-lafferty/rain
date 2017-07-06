@@ -1,4 +1,4 @@
-#lang typed/racket/base
+#lang typed/racket/base/no-check 
 
 (provide (all-defined-out))
 
@@ -25,8 +25,8 @@
                     [characters : (U Char (Listof Char))]
                     [colour : Integer]) : (Listof Char)
     (add-to-acc 
-        (add-to-acc acc 
-                    (string->list (format "\e[38;5;~am" colour))) 
+        (add-to-acc acc ;(reverse
+                    (string->list (format "\e[38;5;~am" colour)));)
         (if (char? characters)
             (list characters)
             characters)))
@@ -56,10 +56,10 @@
 (define (add-to-acc 
             [acc : (Listof Char)] 
             [thing : (Listof Char)]) : (Listof Char)
-    (if (null? acc)
-        thing
+    ;(if (null? acc)
+    ;    thing
         (for/fold ([acc acc]) ([c thing])
-            (cons c acc))))
+            (cons c acc)));)
 
 (define (char-not-quote? [c : Char]) : Boolean
     (not (eqv? #\" c)))
@@ -216,6 +216,12 @@
                         (store-match character-index result (first previous-lines) (rest previous-lines))])
             (values current-line (cons current previous)))))
 
+;TODO: need to check old matches from previous lines
+;to make sure expired ones arent needed anymore
+;(eg lexing current line, had a match but the 
+;user deleted the bracket so now the match
+;on some previous line isn't used anymore
+
 ;TODO: for identifiers add an expansion point at the end that
 ;allows an expander like autocomplete to add text
 (define (lex 
@@ -292,7 +298,7 @@
                         (struct-copy saved-line line
                             [characters (cons c (saved-line-characters line))]
                             [length (add1 (saved-line-length line))])])
-                        (lex (rest characters) acc (add1 index) updated-line lines))
+                        (lex (rest characters) (cons c acc) (add1 index) updated-line lines))
                     ]
                 [#\"
                     ;constant string
