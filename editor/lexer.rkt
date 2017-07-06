@@ -2,7 +2,10 @@
 
 (provide (all-defined-out))
 
-(require "lexer-colours.rkt"
+(require 
+    "lexer-colours.rkt"
+    "../env.rkt"
+    "../interpreter.rkt"
     racket/match
     (except-in racket/list flatten)
     racket/hash)
@@ -114,6 +117,22 @@
     (struct-copy accumulated-lines accumulated
         [lines (cons line (accumulated-lines-lines accumulated))]
         [bracket-counter (+ (saved-line-bracket-counter line) (accumulated-lines-bracket-counter accumulated))]))
+
+(struct highlighted-pair (
+        [first : matching-pair]
+        [second : matching-pair]
+))
+
+(define (make-empty-highlighted-pair) : highlighted-pair
+    (highlighted-pair (matching-pair -1 -1) (matching-pair -1 -1)))
+
+(define (should-highlight? 
+            [line-index : Integer] 
+            [character-index : Integer]
+            [highlighted : highlighted-pair]) : Boolean
+    (let ([pair (matching-pair line-index character-index)])
+        (or (equal? pair (highlighted-pair-first highlighted))
+            (equal? pair (highlighted-pair-second highlighted)))))
 
 (define (is-matching? 
             [a : Char] 
@@ -229,7 +248,8 @@
             [acc : (Listof Char)]
             [index : Integer] 
             [line : saved-line]
-            [lines : accumulated-lines]) : (Values (Listof Char) saved-line accumulated-lines)
+            [lines : accumulated-lines]
+            [highlighted-pair : highlighted-pair]) : (Values (Listof Char) saved-line accumulated-lines)
     (if (null? characters)
         (values acc line lines)
         (let ([c (first characters)])
@@ -247,8 +267,11 @@
                                         [used-colours (hash-set (saved-line-used-colours line)
                                                 index colour)]
                                     )]
-                                [acc (set-colour acc c colour)])
-                            (lex (rest characters) acc (add1 index) updated-line lines)))
+                                [acc
+                                    (if (should-highlight? (saved-line-index line) index highlighted-pair)
+                                        (highlight acc (set-colour '() c colour)) 
+                                        (set-colour acc c colour))])
+                            (lex (rest characters) acc (add1 index) updated-line lines highlighted-pair)))
                     ]
                 [(or #\) #\])
                     ;closer
@@ -267,17 +290,20 @@
                                             (struct-copy saved-line current
                                                 [used-colours (hash-set (saved-line-used-colours current)
                                                     index colour)])]
-                                        [acc (set-colour acc c colour)]
+                                        [acc 
+                                            (if (should-highlight? (saved-line-index line) index highlighted-pair)
+                                                (highlight acc (set-colour '() c colour))
+                                                (set-colour acc c colour))]
                                         [updated-acc-lines 
                                             (struct-copy accumulated-lines lines
                                                 [lines previous])])
-                                    (lex (rest characters) acc (add1 index) coloured-line updated-acc-lines)))
+                                    (lex (rest characters) acc (add1 index) coloured-line updated-acc-lines highlighted-pair)))
                             (let ([coloured-line 
                                         (struct-copy saved-line updated-line
                                             [used-colours (hash-set (saved-line-used-colours updated-line)
                                                 index invalid-bracket-colour)])]
                                     [acc (set-colour acc c invalid-bracket-colour)])
-                                (lex (rest characters) acc (add1 index) coloured-line lines))))
+                                (lex (rest characters) acc (add1 index) coloured-line lines highlighted-pair))))
 
                     ]
                 [(? char-numeric?)
@@ -290,7 +316,7 @@
                                                 (cons i acc))]
                                 [length (+ (saved-line-length line) (length number))])]
                               [acc (set-colour acc number constant-colour)])
-                            (lex (drop characters (length number)) acc (+ index (length number)) updated-line lines)))
+                            (lex (drop characters (length number)) acc (+ index (length number)) updated-line lines highlighted-pair)))
                     ]
                 [(? char-whitespace?)
                     ;single whitespace character
@@ -298,7 +324,7 @@
                         (struct-copy saved-line line
                             [characters (cons c (saved-line-characters line))]
                             [length (add1 (saved-line-length line))])])
-                        (lex (rest characters) (cons c acc) (add1 index) updated-line lines))
+                        (lex (rest characters) (cons c acc) (add1 index) updated-line lines highlighted-pair))
                     ]
                 [#\"
                     ;constant string
@@ -318,14 +344,18 @@
                                                         ([i : Char quoted])
                                                     (cons i acc))]
                                     [length (+ (saved-line-length line) (length quoted))])])
-                            (lex (drop characters (length quoted)) acc (+ index (length quoted)) updated-line lines)))
+                            (lex (drop characters (length quoted)) acc (+ index (length quoted)) updated-line lines highlighted-pair)))
                     ]
                 [_
                     ;identifier
                     (let-values ([([identifier : (Listof Char)] [remaining : (Listof Char)]) 
                             (splitf-at characters char-identifier?)])
                         (let* ([symbol (string->symbol (list->string identifier))]
-                                [colour unknown-colour]
+                                [colour 
+                                    (cond
+                                        [(is-special-form? symbol) special-form-colour]
+                                        [(lookup symbol (list repl-env profile-env)) identifier-colour]
+                                        [else unknown-colour])]
                                 [updated-line 
                                     (struct-copy saved-line line
                                         [characters (for/fold ([acc : (Listof Char) (saved-line-characters line)])
@@ -333,6 +363,6 @@
                                                         (cons i acc))]
                                         [length (+ (saved-line-length line) (length identifier))])]
                                 [acc (set-colour acc identifier colour)])
-                            (lex (drop characters (length identifier)) acc (+ index (length identifier)) updated-line lines)))
+                            (lex (drop characters (length identifier)) acc (+ index (length identifier)) updated-line lines highlighted-pair)))
                             
                     ]))))

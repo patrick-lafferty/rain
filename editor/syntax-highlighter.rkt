@@ -49,12 +49,12 @@
 (define pretty-printer%
     (class object%
         (super-new)
-        (define previous-lines (make-empty-accumulated-lines))
         (define current-accumulated-lines (make-empty-accumulated-lines))
         (define current-line #f)
         (define indent 0)
         (define show-prompt? #t)
         (define cached-characters '())
+        (define highlighted (make-empty-highlighted-pair))
 
         (define/public (print-line characters show-promptt? column row)
             (let-values ([(acc line lines)
@@ -63,14 +63,13 @@
                         '() 
                         0
                         (make-empty-saved-line (get-next-line-number current-accumulated-lines))
-                        current-accumulated-lines)])
-                        ;(displayln acc)
+                        current-accumulated-lines
+                        highlighted)])
                 (let* ([flattened (flatten acc)]
                         [string (list->string (reverse flattened))]
                         [indented (string-append (make-string (max 0 (+ (if (> indent 0) 2 0) indent)) #\space) string)])
-                    ;(set! current-line line)
+                    (set! current-line line)
                     (set! cached-characters characters)
-                    ;(set! current-accumulated-lines lines)
                     (write-line indented (+ (if (> indent 0) 2 0) indent column) show-prompt?))))
 
         (define/public (new-line)
@@ -96,8 +95,41 @@
 
         (define/public (reset)
             (set! show-prompt? #t)
-            (set! previous-lines (make-empty-accumulated-lines))
             (set! current-accumulated-lines (make-empty-accumulated-lines))
             (set! indent 0))
+
+
+        (define (highlight line-index character-index)
+            (let ([line (findf 
+                            (lambda (line) (eqv? (saved-line-index line) line-index))
+                            (accumulated-lines-lines current-accumulated-lines))])
+                (when line
+                    (printf "\e[~a;H" (add1 line-index))
+                    (printf "\e[~aG" character-index)
+                    (printf "\e[48;5;183m")
+                    (display "("))))
+
+        (define (highlight-pair key line matched-pair)
+            (if (integer? key)
+                (set! highlighted (highlighted-pair (matching-pair line key) matched-pair))
+                ;(begin
+                 ;   (highlight line key)
+                 ;   (highlight (matching-pair-line matching-pair) (matching-pair-character matching-pair)))
+                (void)
+            ))
+
+
+        (define/public (highlight-matching-bracket column)
+            (set! highlighted (make-empty-highlighted-pair))
+            (when current-line
+                (let ([matching-pairs (saved-line-matching-pairs current-line)]
+                        [offset (- column 0)]); (+ (if (> indent 0) 2 0) indent))])
+                    (if (hash-has-key? matching-pairs offset)
+                        (highlight-pair offset (saved-line-index current-line) (hash-ref matching-pairs offset))
+                        (if (hash-has-key? matching-pairs (foreign-key offset))
+                            (void)
+                            (void))))))
+                            ;(display "    can highlight\n")
+                            ;(printf "     ~v ~v~n" offset matching-pairs))))))
 
     ))

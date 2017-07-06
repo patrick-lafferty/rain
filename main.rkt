@@ -74,7 +74,7 @@ SOFTWARE.
                 (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))
-                ;(send pretty-printer highlight-matching-bracket position)
+                (send pretty-printer highlight-matching-bracket position)
                 (flush-output)
                 (input-loop channel current-line show-prompt? position current-row)]
             [(list 'cursor-position row column)
