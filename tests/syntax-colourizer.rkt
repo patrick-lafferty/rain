@@ -6,7 +6,7 @@
     racket/class
     racket/match
     racket/hash
-    "../editor/lexer.rkt"
+    (except-in "../editor/lexer.rkt" flatten)
     "../editor/lexer-colours.rkt")
 
                 
@@ -200,6 +200,16 @@
                         (check-equal? (saved-line-length line1) (length src1))
                         (check-equal? (saved-line-matching-pairs line0) (hash (foreign-key 0) (matching-pair 1 0)))
                         (check-equal? (saved-line-matching-pairs line1) (hash 0 (matching-pair 0 0))))))))
+
+    (test-case 
+        "can lex a string"
+        (let* ([src (string->list "\"hello world\"")]
+                [line (make-empty-saved-line)]
+                [lines (make-empty-accumulated-lines)])
+            (let-values ([(acc line lines) (lex src '() 0 line lines)])
+                (check-equal? acc (set-colour '() src string-colour))
+                (check-equal? (saved-line-characters line) (reverse src))
+                (check-equal? (saved-line-length line) (length src)))))
         
 )
 

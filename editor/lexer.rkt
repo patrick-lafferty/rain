@@ -4,8 +4,18 @@
 
 (require "lexer-colours.rkt"
     racket/match
-    racket/list
+    (except-in racket/list flatten)
     racket/hash)
+
+(define-type NestedCharList (Rec a (U Char (Listof a))))
+(define (flatten [x : (Listof NestedCharList)]) : (Listof Char)
+    (define (func)
+        (for/fold ([acc : (Listof Char) '()]) ([i : NestedCharList x]) 
+            (if (list? i)
+                (for/fold ([acc acc]) ([j (flatten i)])
+                    (cons j acc))
+                (cons i acc))))
+    (reverse (func)))
 
 (define (get-bracket-colour [x : Integer]) : Integer 
     (vector-ref bracket-colours 
@@ -269,7 +279,9 @@
                     (let-values ([(number remaining) (splitf-at characters char-numeric?)])
                         (let ([updated-line
                             (struct-copy saved-line line
-                                [characters (for/fold ([acc : (Listof Char) (saved-line-characters line)]) ([i : Char number]) (cons i acc))]
+                                [characters (for/fold ([acc : (Listof Char) (saved-line-characters line)]) 
+                                                    ([i : Char number]) 
+                                                (cons i acc))]
                                 [length (+ (saved-line-length line) (length number))])]
                               [acc (set-colour acc number constant-colour)])
                             (lex (drop characters (length number)) acc (+ index (length number)) updated-line lines)))
@@ -284,8 +296,23 @@
                     ]
                 [#\"
                     ;constant string
-                    ;TODO: stub
-                    (lex (rest characters) acc (add1 index) line lines)
+                    (let*-values (
+                            [(string remaining) (splitf-at (rest characters) char-not-quote?)]
+                            [(remaining add-closing-quote?)
+                                (if (null? remaining) (values remaining #f)
+                                    (if (eqv? #\" (first remaining)) (values (rest remaining) #t)
+                                        (values remaining #f)))])
+                        (let* ([quoted
+                                (if add-closing-quote? (flatten (list #\" string #\"))
+                                    (flatten (list #\" string)))]
+                               [acc (set-colour acc quoted string-colour)]
+                               [updated-line
+                                (struct-copy saved-line line
+                                    [characters (for/fold ([acc : (Listof Char) (saved-line-characters line)])
+                                                        ([i : Char quoted])
+                                                    (cons i acc))]
+                                    [length (+ (saved-line-length line) (length quoted))])])
+                            (lex (drop characters (length quoted)) acc (+ index (length quoted)) updated-line lines)))
                     ]
                 [_
                     ;identifier
