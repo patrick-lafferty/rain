@@ -160,11 +160,16 @@ SOFTWARE.
                         (set! indent (- indent 2))])))
 
         (define/public (reset)
-            (set! current-row -1)
-            (set! show-prompt? #t)
+            (remove-old-highlight)
+            (printf "\e[~a;H" (+ current-row 1 (saved-line-index current-line)))
             (set! current-accumulated-lines (make-empty-accumulated-lines))
-            (set! indent 0))
-
+            (set! current-line #f)
+            (set! indent 0)
+            (set! show-prompt? #t)
+            (set! cached-characters '())
+            (set! highlighted (make-empty-highlighted-pair))
+            (set! current-row -1)
+        )
 
         (define (highlight line-index)
             (let ([line (findf 
@@ -194,28 +199,35 @@ SOFTWARE.
                 (void)
             ))
 
-        (define (remove-old-highlight high)
-            (let ([first (highlighted-pair-first high)]
-                    [second (highlighted-pair-second high)])
+        (define (remove-old-highlight)
+            (let* ([copy (struct-copy highlighted-pair highlighted)]
+                    [first (highlighted-pair-first copy)]
+                    [second (highlighted-pair-second copy)])
+                (set! highlighted (make-empty-highlighted-pair))
                 (highlight (matching-pair-line first))
-                (highlight (matching-pair-line second))))
+                (unless (eqv? (matching-pair-line first) (matching-pair-line second))
+                    (highlight (matching-pair-line second)))
+                (printf "\e[~a;H" (+ current-row (saved-line-index current-line)))))
+
+        (define (try-highlight-at matching-pairs offset)
+            (if (hash-has-key? matching-pairs offset)
+                (begin
+                    (highlight-pair offset (saved-line-index current-line) (hash-ref matching-pairs offset))
+                    #t)
+                (if (hash-has-key? matching-pairs (foreign-key offset))
+                    ;TODO: same as todo in highlight-pair
+                    #f;(void)
+                    #f;(void))))
+                )))
 
         (define/public (highlight-matching-bracket column)
             (unless (is-highlighted-empty? highlighted)
-                (let ([copy (struct-copy highlighted-pair highlighted)])
-                    (set! highlighted (make-empty-highlighted-pair))
-                    (remove-old-highlight copy)
-                    (printf "\e[~a;H" (+ current-row (saved-line-index current-line)))
-                    ))
+                (remove-old-highlight))
 
             (when current-line
                 (let ([matching-pairs (saved-line-matching-pairs current-line)]
                         [offset column])
-                    (if (hash-has-key? matching-pairs offset)
-                        (highlight-pair offset (saved-line-index current-line) (hash-ref matching-pairs offset))
-                        (if (hash-has-key? matching-pairs (foreign-key offset))
-                            ;TODO: same as todo in highlight-pair
-                            (void)
-                            (void))))))
+                    (unless (try-highlight-at matching-pairs offset)
+                        (try-highlight-at matching-pairs (sub1 offset))))))
 
     ))

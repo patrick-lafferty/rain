@@ -175,7 +175,7 @@ SOFTWARE.
                 (place-channel-put channel 'clear)]
             [9 (input-loop channel show-prompt?)]
             ;newline from user pressing enter
-            [10 (displayln "")   
+            [10 
                 (set! up-counter 0)
 
                 (if (> (send commandline get-length) 0)

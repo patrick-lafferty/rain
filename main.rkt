@@ -45,23 +45,26 @@ SOFTWARE.
             ['newline 
                 (printf "\e[6n")
                 (flush-output)
-                (displayln "newline")
+                ;(displayln "newline")
                 (send pretty-printer new-line)
                 (input-loop channel '() #t 0 (add1 current-row))]
             [(list 'finished line)
+                (displayln "")
                 (printf "\e[6n")
                 (flush-output)
+                (send pretty-printer new-line)
+                (send pretty-printer reset)
                 (let* ([code (read (open-input-string line))])    
                     (cond
                         [(list? code) (exec code)]
                         [(symbol? code) (handle-symbol code)]
                         [ else (printf "unknown: ~a~n" code)]))
-                (send pretty-printer reset)
                 (input-loop channel '() #t 0 current-row)]
 
             [(list 'incomplete line)
                 (printf "\e[6n")
                 (flush-output)
+                (printf "\n")
                 (send pretty-printer new-line)
                 (send pretty-printer print-line line #f current-position (add1 current-row))
                 (input-loop channel line #f 0 (add1 current-row))]
@@ -69,6 +72,7 @@ SOFTWARE.
                 (printf "\e[6n")
                 (flush-output)
                 (send pretty-printer print-line line show-prompt? current-position current-row)
+                (send pretty-printer highlight-matching-bracket current-position)
                 (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))
