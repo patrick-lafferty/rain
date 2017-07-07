@@ -1,3 +1,22 @@
+#|
+MIT License
+Copyright (c) 2017 Patrick Lafferty
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+|#
 #lang typed/racket/base/no-check 
 
 (provide (all-defined-out))
@@ -23,16 +42,6 @@
 (define (get-bracket-colour [x : Integer]) : Integer 
     (vector-ref bracket-colours 
         (modulo (if (< x 0) 0 x) (vector-length bracket-colours))))
-
-#|(define (set-colour [acc : (Listof LexedString)] 
-                    [characters : (U Char (Listof Char))]
-                    [colour : Integer]) : (Listof LexedString)
-    (add-to-acc 
-        (add-to-acc acc 
-                    (string->list (format "\e[38;5;~am" colour)))
-        (if (char? characters)
-            (list characters)
-            characters)))|#
 
 (define (set-colour 
             [characters : (U Char (Listof Char))]
@@ -270,20 +279,6 @@
                         (store-match character-index result (first previous-lines) (rest previous-lines))])
             (values current-line (cons current previous)))))
 
-;TODO: need to check old matches from previous lines
-;to make sure expired ones arent needed anymore
-;(eg lexing current line, had a match but the 
-;user deleted the bracket so now the match
-;on some previous line isn't used anymore
-
-;TODO: for identifiers add an expansion point at the end that
-;allows an expander like autocomplete to add text
-
-#|
-(highlight-point (set-colour ... #\())
-
-(expand-point (set-colour ... identifier))
-|#
 (define (lex 
             [characters : (Listof Char)]
             [acc : (Listof LexedString)]
@@ -309,9 +304,6 @@
                                                 index colour)]
                                     )]
                                 [acc (add-to-acc acc (highlight-point (saved-line-index line) index (set-colour c colour)))])
-                                    #|(if (should-highlight? (saved-line-index line) index highlighted-pair)
-                                        (highlight acc (set-colour '() c colour)) 
-                                        (set-colour acc c colour))])|#
                             (lex (rest characters) acc (add1 index) updated-line lines highlighted-pair)))
                     ]
                 [(or #\) #\])
@@ -332,9 +324,6 @@
                                                 [used-colours (hash-set (saved-line-used-colours current)
                                                     index colour)])]
                                         [acc (add-to-acc acc (highlight-point (saved-line-index line) index (set-colour c colour)))]
-                                            #|(if (should-highlight? (saved-line-index line) index highlighted-pair)
-                                                (highlight acc (set-colour '() c colour))
-                                                (set-colour acc c colour))]|#
                                         [updated-acc-lines 
                                             (struct-copy accumulated-lines lines
                                                 [lines previous])])
@@ -344,7 +333,6 @@
                                             [used-colours (hash-set (saved-line-used-colours updated-line)
                                                 index invalid-bracket-colour)])]
                                     [acc (add-to-acc acc (highlight-point (saved-line-index line) index (set-colour c invalid-bracket-colour)))])
-                                    #|(set-colour acc c invalid-bracket-colour)])|#
                                 (lex (rest characters) acc (add1 index) coloured-line lines highlighted-pair))))
 
                     ]

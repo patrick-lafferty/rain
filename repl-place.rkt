@@ -167,7 +167,6 @@ SOFTWARE.
 
 (define (input-loop channel [show-prompt? #t])
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])
-    ;(place-channel-put channel (list 'update-cursor (send commandline get-position)))
     (let ([c (getchar)])
         (match c
             ;EoF from user pressing Ctrl-D

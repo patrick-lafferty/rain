@@ -1,3 +1,22 @@
+#|
+MIT License
+Copyright (c) 2017 Patrick Lafferty
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+|#
 #lang racket/base
 
 (require rackunit
@@ -9,26 +28,6 @@
     (except-in "../editor/lexer.rkt" flatten)
     "../editor/lexer-colours.rkt")
 
-                
-
-#|
-(define pretty-printer%
-    (class object%
-        (super-new)
-
-        (define/public (print-line line row)
-            (let* ([current-line (saved-line '() (make-hash) 0 (make-hash))]
-                    [lexed (lex line '() saved-line)])
-
-
-(define-test-suite line-tests
-    (test-case 
-        "makes a valid line struct for each line"
-        ;(check-equal? ....)
-    )
-
-(run-tests line-tests)
-|#
 
 (define-test-suite lex-tests
     (test-case

@@ -29,7 +29,6 @@ SOFTWARE.
 (require "sh-lang.rkt")
 (require racket/place)
 (require "repl-place.rkt")
-;(require "syntax-colourizer.rkt")
 (require "editor/syntax-highlighter.rkt")
 
 (define pretty-printer (new pretty-printer%))
@@ -63,7 +62,6 @@ SOFTWARE.
             [(list 'incomplete line)
                 (printf "\e[6n")
                 (flush-output)
-                ;(displayln "incomplete")
                 (send pretty-printer new-line)
                 (send pretty-printer print-line line #f current-position (add1 current-row))
                 (input-loop channel line #f 0 (add1 current-row))]
@@ -71,10 +69,8 @@ SOFTWARE.
                 (printf "\e[6n")
                 (flush-output)
                 (send pretty-printer print-line line show-prompt? current-position current-row)
-                ;(send pretty-printer highlight-matching-bracket current-position)
                 (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
-                ;(printf "~n~n~n~n~n~n~n~n~n~n~nupdate-cursor~n~n~n~n~n~n~n")
                 (printf "\e[~aG" (+ 3 position))
                 (send pretty-printer highlight-matching-bracket position)
                 (flush-output)
@@ -88,11 +84,4 @@ SOFTWARE.
         (printf "\e[6n")
         (input-loop p '() #t 0 1)))
 
-(define (test i)
-    (printf "\e[~a;H" i)
-    (printf "~a" i)
-    (flush-output)
-    (sleep 1)
-    (test (random 1 20)))
-;(test 1)
 (main)
