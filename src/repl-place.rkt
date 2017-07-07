@@ -153,6 +153,15 @@ SOFTWARE.
         (let ([c (if (list? str) (if (null? str) str (first str)) str)])
             (match c
                 ['() (null? expected)]
+                [#\" 
+                    (let-values ([(string remaining)
+                            (splitf-at (rest str) (lambda (c) (not (eqv? #\" c))))])
+                        (if (null? remaining)
+                            (null? expected)
+                            (if (eqv? #\" (first remaining))
+                                (helper (rest remaining) expected)
+                                (helper remaining expected))))]
+
                 [(or #\( #\[ #\{) (helper (rest str) (cons (opposite c) expected))]
                 [(or #\) #\] #\}) 
                     (if (eqv? c (first expected))

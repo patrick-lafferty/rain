@@ -1,5 +1,5 @@
 general:
--migrate to typed racket
+-INVESTIGATING migrate to typed racket
 -IN PROGRESS implement unit testing
 -use more functional code where appropriate
 -IN PROGRESS document the code
@@ -21,7 +21,7 @@ objects instead of strings
 profile:
 
 command line:
--syntax colouring
+-DONE syntax colouring
 
 repl:
 -IN PROGRESS replace eval with own interpreter
