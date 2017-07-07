@@ -122,6 +122,7 @@
     [used-colours : (HashTable Integer Integer)];hash-set of character index to colour 
     [length : Integer];cached length
     [lexed : (Listof LexedString)]
+    [indent : Integer]
 ) #:transparent)
 
 (define (make-empty-saved-line [index : Integer 0]) : saved-line
@@ -132,7 +133,8 @@
         0
         (make-immutable-hash)
         0
-        '()))
+        '()
+        0))
 
 (struct accumulated-lines (
         [lines : (Listof saved-line)] ;list of previous lines
@@ -154,11 +156,18 @@
 (struct highlighted-pair (
         [first : matching-pair]
         [second : matching-pair]
-))
+)
+#:transparent)
 
 (define (make-empty-highlighted-pair) : highlighted-pair
     (highlighted-pair (matching-pair -1 -1) (matching-pair -1 -1)))
 
+(define (is-highlighted-empty? pair)
+    (let ([first (highlighted-pair-first pair)]
+            [second (highlighted-pair-second pair)])
+        (and 
+            (< (matching-pair-line first) 0)
+            (< (matching-pair-line second) 0))))
 
 (define (is-matching? 
             [a : Char] 
@@ -334,7 +343,7 @@
                                         (struct-copy saved-line updated-line
                                             [used-colours (hash-set (saved-line-used-colours updated-line)
                                                 index invalid-bracket-colour)])]
-                                    [acc (add-to-acc acc (highlight-point (set-colour c invalid-bracket-colour)))])
+                                    [acc (add-to-acc acc (highlight-point (saved-line-index line) index (set-colour c invalid-bracket-colour)))])
                                     #|(set-colour acc c invalid-bracket-colour)])|#
                                 (lex (rest characters) acc (add1 index) coloured-line lines highlighted-pair))))
 

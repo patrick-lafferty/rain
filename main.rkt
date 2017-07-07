@@ -46,6 +46,7 @@ SOFTWARE.
             ['newline 
                 (printf "\e[6n")
                 (flush-output)
+                (displayln "newline")
                 (send pretty-printer new-line)
                 (input-loop channel '() #t 0 (add1 current-row))]
             [(list 'finished line)
@@ -57,7 +58,7 @@ SOFTWARE.
                         [(symbol? code) (handle-symbol code)]
                         [ else (printf "unknown: ~a~n" code)]))
                 (send pretty-printer reset)
-                (input-loop channel '() #t current-position current-row)]
+                (input-loop channel '() #t 0 current-row)]
 
             [(list 'incomplete line)
                 (printf "\e[6n")
@@ -65,7 +66,7 @@ SOFTWARE.
                 ;(displayln "incomplete")
                 (send pretty-printer new-line)
                 (send pretty-printer print-line line #f current-position (add1 current-row))
-                (input-loop channel line #f current-position (add1 current-row))]
+                (input-loop channel line #f 0 (add1 current-row))]
             [(list 'update show-prompt? line)
                 (printf "\e[6n")
                 (flush-output)
@@ -73,6 +74,7 @@ SOFTWARE.
                 ;(send pretty-printer highlight-matching-bracket current-position)
                 (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
+                ;(printf "~n~n~n~n~n~n~n~n~n~n~nupdate-cursor~n~n~n~n~n~n~n")
                 (printf "\e[~aG" (+ 3 position))
                 (send pretty-printer highlight-matching-bracket position)
                 (flush-output)
@@ -91,6 +93,6 @@ SOFTWARE.
     (printf "~a" i)
     (flush-output)
     (sleep 1)
-    (test (add1 i)))
+    (test (random 1 20)))
 ;(test 1)
 (main)

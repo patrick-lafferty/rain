@@ -167,7 +167,7 @@ SOFTWARE.
 
 (define (input-loop channel [show-prompt? #t])
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])
-    (place-channel-put channel (list 'update-cursor (send commandline get-position)))
+    ;(place-channel-put channel (list 'update-cursor (send commandline get-position)))
     (let ([c (getchar)])
         (match c
             ;EoF from user pressing Ctrl-D
@@ -201,11 +201,13 @@ SOFTWARE.
                     (input-loop channel show-prompt?))]
             [127 
                 (send commandline backspace) 
+                (place-channel-put channel (list 'update-cursor (send commandline get-position)))
                 (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single)))
                 (input-loop channel show-prompt?)]
             [(? negative?) (void)]
             [_ 
                 (send commandline add-char (integer->char c))
+                (place-channel-put channel (list 'update-cursor (send commandline get-position)))
                 (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single)))
                 (input-loop channel show-prompt?)]))))
 
