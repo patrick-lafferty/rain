@@ -17,26 +17,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 |#
-#lang racket/base
+#lang typed/racket/base
 
-;provides functions that interact with the low level terminal
+(provide (all-defined-out))
 
-(provide 
- ;makes the given process group the foreground
- set-foreground-process-group
- getTerminalWidth)
-
-(require ffi/unsafe)
-(require ffi/unsafe/define)
-
-(define-ffi-definer define-libc (ffi-lib #f))
-
-(define-libc tcsetpgrp (_fun _int _int -> _int))
-
-(define libterminal-path (build-path (find-system-path 'collects-dir) "libterminal"))
-(define-ffi-definer define-libterminal (ffi-lib libterminal-path '(#f)))
-
-(define-libterminal getTerminalWidth (_fun -> _int))
-
-(define (set-foreground-process-group terminal-descriptor group)
-    (tcsetpgrp terminal-descriptor group))
+(define constant-colour 82)
+(define string-colour 173)
+(define special-form-colour 125)
+(define identifier-colour 27)
+(define unknown-colour 211)
+(define invalid-bracket-colour 52)
+(define bracket-colours #(68 100 160))

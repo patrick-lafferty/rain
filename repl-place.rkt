@@ -27,13 +27,6 @@ SOFTWARE.
 
 (require racket/place)
 
-(define prompt-character 
-    (match (system-type 'os)
-        ['unix "λ "]
-        ['windows "> "]
-        ['macosx "λ "]
-    ))
-
 (require ffi/unsafe)
 (require ffi/unsafe/define)
 (define-ffi-definer define-libc (ffi-lib #f))
@@ -47,61 +40,101 @@ SOFTWARE.
 (require "ffi_readline.rkt")
 (define-libc getchar (_fun -> _int))
 
-(define safe-read-line
-    (match (system-type 'os)
-        ['unix ffi-read-line]
-        [_ read-line]))
+(struct cursor-position (row column))
+(struct control-sequence-introducer (code bytes))
 
-(define (refresh-line [show-prompt? #t])
-    (printf "\x1b[2K") ;ANSI escape code CSI n K - Erase in Line
-    (printf "\x1b[1G") ;ANSI escape code CSI n G - Cursor Horizontal Absolute
-    (when show-prompt?
-        (display prompt-character))
-    (display (send commandline get-line-single))
-    (printf "\x1b[~aG" (+ (if show-prompt? 3 1) (send commandline get-position)))
-    (flush-output)
-    )
+(define (lex-csi acc)
+    (let ([c (getchar)])
+        (if (< c 64)
+            (lex-csi (cons (integer->char c) acc))
+            (control-sequence-introducer c (reverse acc)))))
+
+(define (parse-csi)
+    (let ([csi (lex-csi '())])
+        (match (integer->char (control-sequence-introducer-code csi))
+            ;CUU - cursor up 
+            [#\A 'up]
+            ;CUD - cursor down
+            [#\B 'down]
+            ;CUF - cursor forward
+            [#\C 'right]
+            ;CUB - cursor back
+            [#\D 'left]
+            [#\~ 'del]
+            ;CNL - cursor next line
+            #|[#\E]
+            ;CPL - cursor previous line
+            [#\F]
+            ;CHA - cursor horizontal absolute
+            [#\G]
+            ;CUP - cursor position
+            [#\H]
+            ;ED - erase in display
+            [#\J]
+            ;EL - erase in line
+            [#\K]
+            ;SU - scroll up
+            [#\S]
+            ;SD - scroll down
+            [#\T]
+            ;HVP - horizontal and vertical position
+            [#\f]|#
+            ;CPR - cursor position
+            ;bytes: row... ; col...
+            [#\R
+                (let-values ([(row column) (splitf-at (control-sequence-introducer-bytes csi) 
+                        (lambda (c) (not (eqv? c #\;))))])
+                    (let ([row (string->number (list->string row))]
+                          [column (string->number (list->string (rest column)))])
+                            (cursor-position row column)))])))
+            
 
 (define (parse-escape-sequence)
     (let ([c1 (getchar)])
         (match c1
+            ;79 is O
             [79 (let ([c2 (getchar)])
                     (match c2
+                        ;f1 - f4 is ^[OP...^[OS
+                        ;80 is P
                         [80 'f1]
                         [_ 'unsupported]))]
-            [91 (let ([c2 (getchar)])
-                    (match c2
-                        [51 (let ([c3 (getchar)])
-                                (match c3
-                                    [126 'del]
-                                    [_ 'unsupported]))]
-                        [65 'up]
-                        [66 'down]
-                        [67 'right]
-                        [68 'left]))])))
+            ;91 is [
+            [91 (parse-csi)])))
 
 (define up-counter 0)
 
 (define (show-history i)
     (let ([past-line (send history get i)])
         (send commandline set-from-history past-line) 
-        (refresh-line)))
+    ))
 
-(define (handle-escape-sequence)
+(define (handle-escape-sequence channel)
     (match (parse-escape-sequence)
-        ['f1 (display "f1")]
-        ['del (send commandline delete) (refresh-line)]
+        [(cursor-position row column)
+            (place-channel-put channel (list 'cursor-position row column))
+            #f]
+        ['f1 (display "f1") #f]
+        ['del (send commandline delete) #t] 
         ['up 
             (show-history up-counter)
             (when (< up-counter (send history get-length))
-                (set! up-counter (+ up-counter 1)))]
+                (set! up-counter (+ up-counter 1)))
+            #t]
         ['down 
             (when (> up-counter -1)
                 (set! up-counter (- up-counter 1)))
-            (show-history up-counter)]
-        ['right (send commandline move-right)]
-        ['left (send commandline move-left)]
-        ['unsupported (display "unsupported")]))
+            (show-history up-counter)
+            #t]
+        ['right 
+            (send commandline move-right)
+            (place-channel-put channel (list 'update-cursor (send commandline get-position)))
+            #t]
+        ['left 
+            (send commandline move-left)
+            (place-channel-put channel (list 'update-cursor (send commandline get-position)))
+            #t]
+        ['unsupported (void) #t]))
 
 (require "commandline.rkt")
 (define commandline (new commandline%))
@@ -136,9 +169,13 @@ SOFTWARE.
     (with-handlers ([exn:fail? (lambda (e) (displayln e))])
     (let ([c (getchar)])
         (match c
-            [4 (send commandline clear)]
+            ;EoF from user pressing Ctrl-D
+            [4
+                (send commandline clear)
+                (place-channel-put channel 'clear)]
             [9 (input-loop channel show-prompt?)]
-            [10 (displayln "")   
+            ;newline from user pressing enter
+            [10 
                 (set! up-counter 0)
 
                 (if (> (send commandline get-length) 0)
@@ -146,22 +183,31 @@ SOFTWARE.
                         (if (balanced line)
                             (begin 
                                 (send history add line)
-                                (place-channel-put channel line)
+                                (place-channel-put channel (list 'finished line))
                                 (send commandline clear))
                             (begin 
                                 (send commandline store)
+                                (place-channel-put channel (list 'incomplete '()))
                                 (send commandline clear-single)
-                                (refresh-line #f)
                                 (input-loop channel #f))))
                     (when (send commandline is-in-multiline?)
-                        (refresh-line #f)
+                        (place-channel-put channel 'newline)
                         (input-loop channel #f)))]
-            [27 (handle-escape-sequence) (input-loop channel show-prompt?)]
-            [127 (send commandline backspace) (refresh-line show-prompt?) (input-loop channel show-prompt?)]
-            [(? negative?) (displayln "eof?")]
+            [27 
+                (let ([update? (handle-escape-sequence channel)])
+                    (when update?
+                        (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single))))
+                    (input-loop channel show-prompt?))]
+            [127 
+                (send commandline backspace) 
+                (place-channel-put channel (list 'update-cursor (send commandline get-position)))
+                (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single)))
+                (input-loop channel show-prompt?)]
+            [(? negative?) (void)]
             [_ 
                 (send commandline add-char (integer->char c))
-                (refresh-line show-prompt?)
+                (place-channel-put channel (list 'update-cursor (send commandline get-position)))
+                (place-channel-put channel (list 'update show-prompt? (send commandline get-line-single)))
                 (input-loop channel show-prompt?)]))))
 
 (provide create-repl-place)
@@ -169,10 +215,11 @@ SOFTWARE.
 (define (repl channel)
     (with-handlers
         ([exn:fail? (lambda (e) (displayln e))])
-        (refresh-line)
-        (flush-output)
         (input-loop channel)
         (repl channel)))
 
+(define (setup channel)
+    (repl channel))
+
 (define (create-repl-place)
-    (place channel (repl channel)))
+    (place channel (setup channel)))

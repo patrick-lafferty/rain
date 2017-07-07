@@ -20,7 +20,8 @@ SOFTWARE.
 #lang racket/base
 
 (provide
-    interpret)
+    interpret
+    is-special-form?)
 
 (require racket/list)
 (require racket/match)
@@ -43,6 +44,9 @@ SOFTWARE.
     'when
     'unless
     ))
+
+(define (is-special-form? x)
+    (if (member x interpreter-keywords) #t #f))
 
 (define (escape-local x env)
     (match x

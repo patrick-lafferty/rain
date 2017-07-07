@@ -6,6 +6,7 @@ all:
 	~/racket/racket/bin/raco distribute release/lush lush
 	cp libnotify.so release/lush/lib/plt/lush/collects
 	cp libsignals.so release/lush/lib/plt/lush/collects
+	cp libterminal.so release/lush/lib/plt/lush/collects
 	
 scribble-docs:
 	rm docs -rf
