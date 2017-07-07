@@ -1,11 +1,17 @@
 all:
-	~/racket/racket/bin/raco exe -o lush main.rkt
+	~/racket/racket/bin/raco exe -o lush src/main.rkt
 	rm release -rf
 	mkdir release
 	mkdir release/lush
 	~/racket/racket/bin/raco distribute release/lush lush
+	
+	g++ -shared -o libnotify.so -fPIC src/notify.cpp -std=c++11
 	cp libnotify.so release/lush/lib/plt/lush/collects
+
+	gcc -shared -o libsignals.so -fPIC src/signals.c
 	cp libsignals.so release/lush/lib/plt/lush/collects
+	
+	gcc -shared -o libterminal.so -fPIC src/terminal.c
 	cp libterminal.so release/lush/lib/plt/lush/collects
 	
 scribble-docs:
