@@ -6,6 +6,6 @@
     Maybe)
 
 (struct none ())
-(struct (a) some ([value : a]))
+(struct (a) some ([value : a]) #:transparent)
 
 (define-type (Maybe a) (U (some a) none))
