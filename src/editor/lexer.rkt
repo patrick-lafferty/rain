@@ -82,6 +82,8 @@ SOFTWARE.
 #:transparent)
 
 (struct autocomplete-point (
+    [start-index : Integer]
+    [end-index : Integer]
     [characters : (Listof Char)] ; the identifier and its colour escape sequence
 )
 #:transparent)
@@ -392,7 +394,7 @@ SOFTWARE.
                                                             ([i : Char identifier])
                                                         (cons i acc))]
                                         [length (+ (saved-line-length line) (length identifier))])]
-                                [acc (add-to-acc acc (autocomplete-point (set-colour identifier colour)))])
+                                [acc (add-to-acc acc (autocomplete-point index (+ index (length identifier)) (set-colour identifier colour)))])
                             (lex (drop characters (length identifier)) acc (+ index (length identifier)) updated-line lines highlighted-pair)))
                             
                     ]))))

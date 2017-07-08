@@ -28,7 +28,8 @@ SOFTWARE.
     racket/match
     (except-in "lexer.rkt" flatten)
     "../terminal.rkt"
-    "../env.rkt")
+    "../env.rkt
+    "autocompletion.rkt")
 
 (define (clamp-line line)
     (let* ([maximum (min (- (getTerminalWidth) 3) (length line))])
@@ -81,7 +82,7 @@ SOFTWARE.
             (equal? pair (highlighted-pair-second highlighted)))))
 
 
-(define (expand lexed current-highlighted-pair)
+(define (expand lexed current-highlighted-pair column)
     (reverse 
         (for/fold ([acc '()]) ([i lexed])
             (match i
@@ -90,9 +91,13 @@ SOFTWARE.
                         (expand-highlight acc characters)
                         (for/fold ([acc acc]) ([j characters])
                             (cons j acc)))]
-                [(autocomplete-point x) 
-                    (for/fold ([acc acc]) ([j x])
-                        (cons j acc))]
+                [(autocomplete-point start end characters) 
+                    (if (and (<= column end) (>= column start))
+                        (let ([acc (foldl cons acc (set-colour (autocomlete characters) 243))])
+                            (for/fold ([acc acc]) ([j characters])
+                                (cons j acc)))
+                        (for/fold ([acc acc]) ([j characters])
+                            (cons j acc)))]
                 [ (? list?)
                     (for/fold ([acc acc]) ([j i])
                         (cons j acc))]
@@ -112,7 +117,7 @@ SOFTWARE.
         (define current-row -1)
 
         (define (do-print acc indent column show-prompt?)
-                (let* ([expanded (expand acc highlighted)]
+                (let* ([expanded (expand acc highlighted column)]
                         [flattened (flatten expanded)]
                         [string (list->string (reverse flattened))]
                         [indented (string-append (make-string (max 0 (- indent column)) #\space) string)])
@@ -229,5 +234,14 @@ SOFTWARE.
                         [offset column])
                     (unless (try-highlight-at matching-pairs offset)
                         (try-highlight-at matching-pairs (sub1 offset))))))
+
+        #|(define/public (expand column)
+            (unless (highlight-matching-bracket column)
+                (let ([autocomplete (findf (match-lambda
+                        [(autocomplete start end characters)
+                            (and (<= column end) (>= column start))
+                        [_ #f]) (saved-line-lexed current-line))])
+                    (when autocomplete
+|#
 
     ))
