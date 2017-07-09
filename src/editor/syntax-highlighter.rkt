@@ -28,8 +28,9 @@ SOFTWARE.
     racket/match
     (except-in "lexer.rkt" flatten)
     "../terminal.rkt"
-    "../env.rkt
-    "autocompletion.rkt")
+    "../env.rkt"
+    "autocompletion.rkt"
+    "../functional/maybe.rkt")
 
 (define (clamp-line line)
     (let* ([maximum (min (- (getTerminalWidth) 3) (length line))])
@@ -93,9 +94,28 @@ SOFTWARE.
                             (cons j acc)))]
                 [(autocomplete-point start end characters) 
                     (if (and (<= column end) (>= column start))
-                        (let ([acc (foldl cons acc (set-colour (autocomlete characters) 243))])
-                            (for/fold ([acc acc]) ([j characters])
-                                (cons j acc)))
+                        (let ([completion-candidate 
+                            (if (null? characters)
+                                (none)
+                                (let-values ([(word colour-code) (splitf-at-right characters (lambda (x) (not (eqv? x #\m))))])
+                                    (match (reverse word) 
+                                        [(list #\m x ...)
+                                            (let ([candidates (autocomplete (rest (reverse word)))])
+                                                (match candidates
+                                                    [(none) (none)]
+                                                    [(some '()) (none)]
+                                                    [(some completion) (some (first completion))]))]
+
+                                        [_ (none)])))])
+                            (match completion-candidate
+                                [(some completion)
+                                    (let ([acc (foldl cons acc (set-colour completion 243))])
+                                        (for/fold ([acc acc]) ([j characters])
+                                            (cons j acc)))]
+                                [(none)
+                                    (for/fold ([acc acc]) ([j characters])
+                                        (cons j acc))]))
+                                
                         (for/fold ([acc acc]) ([j characters])
                             (cons j acc)))]
                 [ (? list?)

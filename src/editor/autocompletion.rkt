@@ -19,6 +19,8 @@ SOFTWARE.
 |#
 #lang typed/racket/base
 
+(provide autocomplete)
+
 (require "../functional/maybe.rkt"
     racket/list
     racket/match)
@@ -148,7 +150,6 @@ SOFTWARE.
     'set
     'define-syntax
     'define
-    'defile
     'lambda
     'quote
     'let
@@ -173,11 +174,11 @@ SOFTWARE.
     (if (null? (trie-node-children trie))
         (cons trie empty)
         (cons trie 
-            (for/fold ([acc : (Listof Trie) '()]) ([child : Trie (trie-node-children trie)]) ;(flatten-trie (trie-node-children trie))])
+            (for/fold ([acc : (Listof Trie) '()]) ([child : Trie (trie-node-children trie)]) 
                 (let ([subtrie : (Listof Trie) (flatten-trie child)])
                     (for/fold ([acc : (Listof Trie) acc]) ([c subtrie])
                         (cons c acc)))))))
-
+(print-trie known-identifiers)
 (define (autocomplete 
     [characters : (Listof Char)]) : (Maybe (Listof (Listof Char)))
 
@@ -191,22 +192,26 @@ SOFTWARE.
                 (if (null? remaining)
                     trie
                     (traverse remaining (list-ref (trie-node-children trie) index)))]
-            [_ trie]))
 
-    (let ([breadcrumbs (find characters known-identifiers 0)])
-        (match breadcrumbs 
-            [(none) (none)]
-            [(some (cons (replace-node _ _ _ _) _)) (none)]
-            [(some (cons (add-leaf _ _) _)) (none)]
-            [(some thing)
-                (let* ([subtrie : Trie (traverse thing known-identifiers)]
-                        [completions : (Listof (Listof Char)) 
-                            (for/fold ([acc : (Listof (Listof Char)) '()]) ([trie : Trie (trie-node-children subtrie)])
-                                (match (trie-node-label trie)
-                                    [(some x) (cons x acc)]
-                                    [(none) acc]))])
-                    ((inst some (Listof (Listof Char))) completions))]
-        )))
+            [(cons (replace-node _ _ _ rest-child) _)
+                (trie-node (some rest-child) (trie-node-children trie))]
+            [_ trie]))
+    (if (null? characters) 
+        (none)
+        (let ([breadcrumbs (find characters known-identifiers 0)])
+            (match breadcrumbs 
+                [(none) (none)]
+                [(some (cons (replace-node _ _ _ _) _)) (none)]
+                [(some (cons (add-leaf _ _) _)) (none)]
+                [(some thing)
+                    (let* ([subtrie : Trie (traverse thing known-identifiers)]
+                            [completions : (Listof (Listof Char)) 
+                                (for/fold ([acc : (Listof (Listof Char)) '()]) ([trie : Trie (flatten-trie subtrie)]);(trie-node-children subtrie)])
+                                    (match (trie-node-label trie)
+                                        [(some x) (cons x acc)]
+                                        [(none) acc]))])
+                        ((inst some (Listof (Listof Char))) completions))]
+        ))))
 
                     
 ;TODO: consider having function keys (f1-f4) switch tabs in the completion popup window
