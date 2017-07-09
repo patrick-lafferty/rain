@@ -178,7 +178,7 @@ SOFTWARE.
                 (let ([subtrie : (Listof Trie) (flatten-trie child)])
                     (for/fold ([acc : (Listof Trie) acc]) ([c subtrie])
                         (cons c acc)))))))
-(print-trie known-identifiers)
+;(print-trie known-identifiers)
 (define (autocomplete 
     [characters : (Listof Char)]) : (Maybe (Listof (Listof Char)))
 

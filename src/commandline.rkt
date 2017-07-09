@@ -25,8 +25,9 @@ SOFTWARE.
  ;class that handles basic input editing
  commandline%)
 
-(require racket/list)
-(require racket/class)
+(require (rename-in racket/base (length list-length))
+    racket/list
+    racket/class)
 
 (define (erase-at lst i)
     (define (helper c before after)
@@ -92,6 +93,18 @@ SOFTWARE.
 
         (define/public (get-position) position)
         (define/public (get-length) length)
+
+        (define/public (replace characters start-index end-index)
+            (let-values ([(pre-replace replace-and-post) 
+                            (split-at (reverse line) end-index)])
+                (set! line (reverse (append pre-replace characters replace-and-post)))
+                (set! position (+ (list-length characters) position))
+                (set! length (+ (list-length characters) length))))
+            #|(let-values ([(pre-replace replace-and-post) 
+                            (split-at (reverse line) start-index)])
+                (let ([remaining (drop replace-and-post (- end-index start-index))])
+                    (printf "~n~nreplace ~v ~v ~v ~v ~n~n" pre-replace characters replace-and-post remaining)
+                    (set! line (reverse (append pre-replace characters remaining))))))|#
 
         (define (update-cursor)
             (printf "\x1b[~aG" (+ 3 position))

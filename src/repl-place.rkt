@@ -182,7 +182,20 @@ SOFTWARE.
             [4
                 (send commandline clear)
                 (place-channel-put channel 'clear)]
-            [9 (input-loop channel show-prompt?)]
+            ;tab was pressed
+            [9 
+                (place-channel-put channel 'tab)
+                (let ([response (place-channel-get channel)])
+                    (match response
+                        [(list 'replace characters start-index end-index)
+                            (send commandline replace characters start-index end-index) 
+                            (place-channel-put channel 
+                                (list 'update show-prompt? (send commandline get-line-single)))
+                            (place-channel-put channel 
+                                (list 'update-cursor (send commandline get-position)))
+                            ]
+                        [_ (void)]))
+                (input-loop channel show-prompt?)]
             ;newline from user pressing enter
             [10 
                 (set! up-counter 0)

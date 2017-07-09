@@ -25,11 +25,12 @@ SOFTWARE.
 
 ;Basic shell that uses Racket as its scripting language
 
-(require "shell.rkt")
-(require "sh-lang.rkt")
-(require racket/place)
-(require "repl-place.rkt")
-(require "editor/syntax-highlighter.rkt")
+(require "shell.rkt"
+    "sh-lang.rkt"
+    racket/place
+    "repl-place.rkt"
+    "editor/syntax-highlighter.rkt"
+    "functional/maybe.rkt")
 
 (define pretty-printer (new pretty-printer%))
 
@@ -37,6 +38,14 @@ SOFTWARE.
     (send pretty-printer print-line current-line show-prompt? current-position current-row)
     (let ([line (place-channel-get channel)])
         (match line
+            ['tab
+                (let ([completion-candidate (send pretty-printer complete-if-possible current-position)])
+                    (match completion-candidate
+                        [(some (list x start-index end-index)) 
+                            ;(printf "~n~ncompleting ~v between ~v and ~v~n~n" x start-index end-index)
+                            (place-channel-put channel (list 'replace x start-index end-index))]
+                        [_ (place-channel-put channel 'continue)]))
+                (input-loop channel current-line show-prompt? current-position current-row)]
             ['clear 
                 (printf "\e[6n")
                 (flush-output)
@@ -89,3 +98,5 @@ SOFTWARE.
         (input-loop p '() #t 0 1)))
 
 (main)
+
+(handle-symbol 'exit)

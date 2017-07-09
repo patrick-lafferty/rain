@@ -83,6 +83,21 @@ SOFTWARE.
             (equal? pair (highlighted-pair-second highlighted)))))
 
 
+(define (complete column start end characters)
+    (if (and (<= column end) (>= column start))
+        (if (null? characters)
+            (none)
+            (let-values ([(word colour-code) (splitf-at-right characters (lambda (x) (not (eqv? x #\m))))])
+                (match (reverse word) 
+                    [(list #\m x ...)
+                        (let ([candidates (autocomplete (rest (reverse word)))])
+                            (match candidates
+                                [(none) (none)]
+                                [(some '()) (none)]
+                                [(some completion) (some (first completion))]))]
+                    [_ (none)])))
+        (none)))
+
 (define (expand lexed current-highlighted-pair column)
     (reverse 
         (for/fold ([acc '()]) ([i lexed])
@@ -93,31 +108,16 @@ SOFTWARE.
                         (for/fold ([acc acc]) ([j characters])
                             (cons j acc)))]
                 [(autocomplete-point start end characters) 
-                    (if (and (<= column end) (>= column start))
-                        (let ([completion-candidate 
-                            (if (null? characters)
-                                (none)
-                                (let-values ([(word colour-code) (splitf-at-right characters (lambda (x) (not (eqv? x #\m))))])
-                                    (match (reverse word) 
-                                        [(list #\m x ...)
-                                            (let ([candidates (autocomplete (rest (reverse word)))])
-                                                (match candidates
-                                                    [(none) (none)]
-                                                    [(some '()) (none)]
-                                                    [(some completion) (some (first completion))]))]
-
-                                        [_ (none)])))])
-                            (match completion-candidate
-                                [(some completion)
-                                    (let ([acc (foldl cons acc (set-colour completion 243))])
-                                        (for/fold ([acc acc]) ([j characters])
-                                            (cons j acc)))]
-                                [(none)
+                    (let ([completion-candidate (complete column start end characters)])
+                        (match completion-candidate
+                            [(some completion)
+                                (let ([acc (foldl cons acc (set-colour completion 243))])
                                     (for/fold ([acc acc]) ([j characters])
-                                        (cons j acc))]))
+                                        (cons j acc)))]
+                            [(none)
+                                (for/fold ([acc acc]) ([j characters])
+                                    (cons j acc))]))]
                                 
-                        (for/fold ([acc acc]) ([j characters])
-                            (cons j acc)))]
                 [ (? list?)
                     (for/fold ([acc acc]) ([j i])
                         (cons j acc))]
@@ -155,7 +155,12 @@ SOFTWARE.
                         current-accumulated-lines
                         highlighted)])
                 (do-print acc (+ (if (> indent 0) 2 0) indent column) column show-prompt?)
-                (set! current-line line)
+                ;(set! current-line line)
+                (let ([line 
+                    (struct-copy saved-line line
+                        [lexed acc]
+                        [indent (+ (if (> indent 0) 2 0) indent )])])
+                    (set! current-line line))
                 (set! cached-characters characters)))
 
         (define/public (new-line)
@@ -254,6 +259,27 @@ SOFTWARE.
                         [offset column])
                     (unless (try-highlight-at matching-pairs offset)
                         (try-highlight-at matching-pairs (sub1 offset))))))
+
+        (define/public (complete-if-possible column)
+            ;(printf "~n~n~n~v~n~n" current-line)
+            (if current-line
+                (let ([completion-point (findf (match-lambda
+                        [(autocomplete-point start end characters)
+                            (and (<= column end) (>= column start))]
+                        [_ #f]) (saved-line-lexed current-line))])
+                    (if completion-point
+                        (let ([start-index (autocomplete-point-start-index completion-point)]
+                                [end-index (autocomplete-point-end-index completion-point)])
+                            (let ([candidate 
+                                    (complete column
+                                        start-index
+                                        end-index
+                                        (autocomplete-point-characters completion-point))])
+                                (match candidate
+                                    [(some x) (some (list x start-index end-index))]
+                                    [_ (none)])))
+                        (none)))
+                (none)))
 
         #|(define/public (expand column)
             (unless (highlight-matching-bracket column)
