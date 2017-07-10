@@ -33,6 +33,7 @@ SOFTWARE.
     export-to-file
     export-to-profile
     print-source  
+    get-all-mapped-symbols
 )
 
 (require
@@ -109,3 +110,6 @@ SOFTWARE.
 (define (print-source id)
     (let ([value (lookup id (list source-env))])
         (when value (displayln value))))
+
+(define (get-all-mapped-symbols)
+    (namespace-mapped-symbols shell-namespace))

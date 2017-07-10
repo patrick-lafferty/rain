@@ -94,7 +94,12 @@ SOFTWARE.
                             (match candidates
                                 [(none) (none)]
                                 [(some '()) (none)]
-                                [(some completion) (some (first completion))]))]
+                                [(some completion) 
+                                    ;(printf "~n~n")
+                                    ;(for ([c completion])
+                                    ;    (display c))
+                                    ;(printf "~n~n")
+                                    (some (first completion))]))]
                     [_ (none)])))
         (none)))
 

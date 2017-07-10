@@ -87,7 +87,12 @@ SOFTWARE.
     [characters : (Listof Char)] ; the identifier and its colour escape sequence
 )
 #:transparent)
-
+#|TODO: 
+struct sh-autocomplete-point
+completes filenames, expands globs
+if no completion happened then falls back
+to regular autocomplete
+|#
 (define-type LexedString (U  highlight-point
                     autocomplete-point
                     (Listof Char)))
