@@ -179,11 +179,22 @@ SOFTWARE.
         (insert (string->list (symbol->string id)) trie)))
 
 (define repl-definitions-trie (trie-node (some '()) empty #f))
+(define repl-abbreviations-trie (trie-node (some '()) empty #f))
 
 (define (add-symbol
     [id : Symbol]) : Void
-    (set! repl-definitions-trie
-        (insert (string->list (symbol->string id)) repl-definitions-trie)))
+    (let ([string (symbol->string id)])
+        (set! repl-definitions-trie
+            (insert (string->list string) repl-definitions-trie))
+
+        ;make sure the string is of the form x-y-z, can't start or end with -
+        #|(when (regexp-match? #px"^([[:graph:]][^-]*)(-[[:graph:]][^-]*)*$" string)
+            (let* ([words (string-split string "-")]
+                    [abbreviated (map (lambda (w) (list-ref w 0)) words)])
+                (insert abbreviated repl-abbreviations-trie)))|#
+                
+    ))
+
 
 (define (add-prefix 
     [prefix-to-add : (Maybe (Listof Char))]

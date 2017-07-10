@@ -64,11 +64,13 @@ SOFTWARE.
                 (flush-output)
                 (send pretty-printer new-line)
                 (send pretty-printer reset)
-                (let* ([code (read (open-input-string line))])    
-                    (cond
-                        [(list? code) (exec code)]
-                        [(symbol? code) (handle-symbol code)]
-                        [ else (printf "unknown: ~a~n" code)]))
+                (with-handlers
+                    ([exn:fail? (lambda (e) (displayln e))])
+                    (let* ([code (read (open-input-string line))])    
+                        (cond
+                            [(list? code) (exec code)]
+                            [(symbol? code) (handle-symbol code)]
+                            [ else (printf "unknown: ~a~n" code)])))
                 (input-loop channel '() #t 0 current-row)]
 
             [(list 'incomplete line)
