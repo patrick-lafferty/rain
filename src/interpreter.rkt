@@ -52,7 +52,7 @@ SOFTWARE.
     (match x
         [(list '!!local-or-string y) y]
         [_ x]))
-
+;TODO: add hook for defined-new-symbol so autocomplete can add to trie
 (define (interpret code env [top-level? #f]) 
     (debug-printf "interpreting code ~v~n" code)
     (match code

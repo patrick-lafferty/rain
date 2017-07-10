@@ -61,6 +61,8 @@ SOFTWARE.
 
 (define-type FindResult (U update-child replace-node add-leaf exists))
 
+(define print? #f)
+
 (define (find
     [identifier : (Listof Char)]
     [trie : Trie]
@@ -101,21 +103,31 @@ SOFTWARE.
                         (split-common-prefix identifier label)])
                 (if (null? common)
                     ;nothing in common, go back
+                    (begin 
+                    (when print? (printf "common null: ~v ~v~n" rest-id rest-label))
                     (none)
+                    )
                     ;something in common
                     (if (null? rest-id)
                         ;end of search word reached
+                        (begin
+                        (when print? (printf "rest-id null: ~v ~v~n" common rest-label))
                         (if (null? rest-label)
                             ;end of label reached
                             ;(some (list (exists parent-index)))
+                            (begin (when print? (printf "rest-label null: ~v ~v ~v~n" common identifier label))
                             (some (cons (exists parent-index) '()))
+                            )
                             ;end of search word but label still has more letters, split label
                             ;(some (list (replace-node parent-index common rest-id rest-label))))
                             (some (cons (replace-node parent-index common rest-id rest-label) '())))
+                        )
                         ;more left in search word
+                        (begin (when print? (printf "rest-id not null: ~v ~v ~v~n" common rest-id rest-label))
                         (if (null? rest-label)
                             ;more left in search word but label is a proper prefix of search word
                             (let ([result (find-children rest-id (trie-node-children trie) 0 parent-index)])
+                                (when print? (printf "result ~v~n" result))
                                 (match result
                                     ;[(cons x (some (list (exists y)))) (some (cons (exists x) (list (exists y))))]
                                     ;[(cons x (some (cons (exists y) remaining))) (some (cons (exists x) (list (exists y) remaining)))]
@@ -126,7 +138,8 @@ SOFTWARE.
                                             [_ (some (cons (update-child x) change))])]))
                                     ;[(cons x (some change)) (some (cons (update-child x) change))]))
                             ;(some (list (replace-node parent-index common rest-id rest-label)))))))]))
-                            (some (cons (replace-node parent-index common rest-id rest-label) '()))))))]))
+                            (some (cons (replace-node parent-index common rest-id rest-label) '())))
+                            ))))]))
 
 (define (replace 
         [trie : Trie]
@@ -203,6 +216,8 @@ SOFTWARE.
         (set! known-identifiers thing)
 ))
 
+;(set! print? #t)
+
 (define (add-prefix 
     [prefix-to-add : (Maybe (Listof Char))]
     [trie : Trie]) : Trie
@@ -236,18 +251,23 @@ SOFTWARE.
         (match (trie-node-label trie)
             [(some x) x]
             [(none) '()])])
-            (printf "my-label: ~v~n" my-label)
+            ;(printf "my-label: ~v, eow? ~v~n" my-label (trie-node-end-of-word trie))
         (if (trie-node-end-of-word trie)
+            (begin ;(printf "~ntri-eow ~v~n~n" trie)
             (cons (cons my-label path) acc)
+            )
 
             (let ([path (cons my-label path)])
+                ;(printf "~ntri-path: ~v~n~n" path)
                 (for/fold ([acc : (Listof (Listof Char)) acc]) ([a : Trie (trie-node-children trie)])
                     (let ([child-label 
                             (match (trie-node-label a)
                                 [(some x) x]
                                 [(none) '()])])
                         (if (trie-node-end-of-word a)
+                            (begin ;(printf "~ntri-child eow: ~v~n" a)
                             (cons (cons child-label path) acc)
+                            )
                             (collect-end-of-words a path acc))))))))
 
                     #|(match (trie-node-label a)
@@ -305,9 +325,20 @@ SOFTWARE.
             [(cons (exists index) remaining)
                 ;(if (null? remaining)
                 ;    trie
-                (if (null? (trie-node-children trie))
+                #|(if (null? (trie-node-children trie))
                     trie
-                    (traverse remaining (list-ref (trie-node-children trie) index)))];)]
+                    (begin (printf "~nskipping ~v~n" trie)
+                    (traverse remaining (list-ref (trie-node-children trie) index))))];)]
+                    |#
+                (if (null? remaining)
+                    trie
+                    (let* ([my-label 
+                            (match (trie-node-label trie)
+                                [(some x) x]
+                                [(none) '()])]
+                        [child (traverse remaining (list-ref (trie-node-children trie) index))]
+                        [child-label (match (trie-node-label child) [(some x) x] [(none) '()])])
+                        (trie-node (some (append my-label child-label)) '() #t)))]
             
             [(cons (replace-node _ _ _ rest-child) _)
                 (trie-node (some rest-child) (trie-node-children trie) (trie-node-end-of-word trie))]
@@ -315,7 +346,7 @@ SOFTWARE.
     (if (null? characters) 
         (none)
         (let ([breadcrumbs (find characters known-identifiers 0)])
-            (printf "~n~n~v      ~v~n~n" characters breadcrumbs)
+            ;(printf "~n~n~v      ~v~n~n" characters breadcrumbs)
             (match breadcrumbs 
                 [(none) (none)]
                 [(some (cons (replace-node _ _ _ _) _)) (none)]
@@ -326,7 +357,7 @@ SOFTWARE.
                             [completions : (Listof (Listof Char)) 
                                 (for/list ;([acc : (Listof (Listof Char)) '()])
                                             ([c (collect-end-of-words subtrie '() '())])
-                                    (displayln (flatten (reverse c)))
+                                    ;(displayln (flatten (reverse c)))
                                     (suffix characters (flatten (reverse c))))])
                                #| (for/fold ([acc : (Listof (Listof Char)) '()]) ([trie : Trie (reverse (flatten-trie subtrie))]);(trie-node-children subtrie)])
                                 ;(printf "~n~ncollect: ~v~n~n" (reverse (collect-end-of-words subtrie '() '())))
