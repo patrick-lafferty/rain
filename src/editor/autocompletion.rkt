@@ -24,11 +24,11 @@ SOFTWARE.
 
 (require "../functional/maybe.rkt"
     racket/list
-    racket/match)
-    ;"../interpreter.rkt")
+    racket/match
+    "../interpreter/supported-special-forms.rkt")
 
 (require/typed 
-    "../env.rkt"
+    "../interpreter/env.rkt"
     [get-all-mapped-symbols (-> (Listof Symbol))])
 
 (define-type Trie trie-node)
@@ -37,8 +37,6 @@ SOFTWARE.
     [children : (Listof Trie)]
     [end-of-word : Boolean]
     )#:transparent)   
-
-(define known-identifiers (trie-node (some '()) '() #f))
 
 (struct update-child (
     [child-index : Integer]
@@ -168,50 +166,24 @@ SOFTWARE.
     (for ([child : Trie (trie-node-children trie)])
         (print-trie child (add1 indent))))
 
-(define interpreter-keywords (list 
-    'if
-    'or
-    'and
-    'cond
-    'set
-    'define-syntax
-    'define
-    'lambda
-    'quote
-    'let
-    'let*
-    'letrec
-    'begin
-    'when
-    'unless
-    
-    'string
-    'string->list
-    'string-append
-    ))
-
-;TODO: have seperate completion tries for each interpreter environment
-;and one for the main racket stuff (this one)
-
 ;TODO: consider allowing let/let* etc completion local to that let
 
-(let ([thing
-        (for/fold ([trie : Trie (trie-node (some '()) empty #f)])
+(define special-forms-trie
+    (for/fold ([trie : Trie (trie-node (some '()) empty #f)])
             ([id : Symbol interpreter-keywords])
-            (insert (string->list (symbol->string id)) trie))])
-    (let ([thing 
-        (for/fold ([trie : Trie thing])
-                ([id : Symbol (get-all-mapped-symbols)])
-            (insert (string->list (symbol->string id)) trie))])
-        
-        (set! known-identifiers thing)
-))
+        (insert (string->list (symbol->string id)) trie)))
 
-;TODO: replace with proper hierarchy of tries
+(define racket-definitions-trie
+    (for/fold ([trie : Trie (trie-node (some '()) empty #f)])
+            ([id : Symbol (get-all-mapped-symbols)])
+        (insert (string->list (symbol->string id)) trie)))
+
+(define repl-definitions-trie (trie-node (some '()) empty #f))
+
 (define (add-symbol
     [id : Symbol]) : Void
-    (set! known-identifiers 
-        (insert (string->list (symbol->string id)) known-identifiers)))
+    (set! repl-definitions-trie
+        (insert (string->list (symbol->string id)) repl-definitions-trie)))
 
 (define (add-prefix 
     [prefix-to-add : (Maybe (Listof Char))]
@@ -255,26 +227,40 @@ SOFTWARE.
                             )
                             (collect-end-of-words a path acc))))))))
 
-(define (flatten-trie
-    [trie : Trie]) : (Listof Trie)
-
-    (if (trie-node-end-of-word trie)
-        ;this is a full word, don't go deeper
-        (cons trie empty)
-
-        (let ([children 
-            (for/fold ([acc : (Listof Trie) '()]) ([child : Trie (trie-node-children trie)])
-                (if (trie-node-end-of-word child)
-                    ;need to add the prefix from parent
-                    (cons (add-prefix (trie-node-label trie) child) acc)
-                    (let ([subtrie : (Listof Trie) (flatten-trie child)])
-                        (for/fold ([acc : (Listof Trie) acc]) ([c subtrie])
-                            (cons c acc)))))])
-            children)))
-
 (define (autocomplete 
-    [characters : (Listof Char)]) : (Maybe (Listof (Listof Char)))
+    [characters : (Listof Char)]
+    [context : Symbol]) : (Maybe (Listof (Listof Char)))
 
+    (match context
+        ['normal 
+            (progressive-search characters 
+                (list repl-definitions-trie racket-definitions-trie))]
+
+        [(or 'special-form 'define 'set 'send)
+            (progressive-search characters 
+                (list special-forms-trie repl-definitions-trie racket-definitions-trie))]
+
+        ['define-name (none)]
+        ['send-object-name (none)]
+        ['send-method-name (none)]
+
+    ))
+
+(define (progressive-search
+    [characters : (Listof Char)]
+    [tries : (Listof Trie)]) : (Maybe (Listof (Listof Char)))
+
+    (if (null? tries)
+        (none)
+        (let ([result (search characters (first tries))])
+            (match result 
+                [(some _) result]
+                [(none) 
+                    (progressive-search characters (rest tries))]))))
+
+(define (search 
+    [characters : (Listof Char)] 
+    [trie : Trie]) : (Maybe (Listof (Listof Char)))
     (define (traverse 
         [breadcrumbs : (Listof FindResult)] 
         [trie : Trie]) : Trie
@@ -309,19 +295,22 @@ SOFTWARE.
             [_ trie]))
     (if (null? characters) 
         (none)
-        (let ([breadcrumbs (find characters known-identifiers 0)])
+        (let ([breadcrumbs (find characters trie 0)])
             (when print? (printf "~n~n~v      ~v~n~n" characters breadcrumbs))
             (match breadcrumbs 
                 [(none) (none)]
                 [(some (cons (replace-node _ _ _ _) _)) (none)]
                 [(some (cons (add-leaf _ _) _)) (none)]
                 [(some thing)
-                    (let* ([subtrie : Trie (traverse thing known-identifiers)]
+                    (let* ([subtrie : Trie (traverse thing trie)]
                             [completions : (Listof (Listof Char)) 
                                 (for/list ([c (collect-end-of-words subtrie '() '())])
                                     (when print? (displayln (flatten (reverse c))))
-                                    (suffix characters (flatten (reverse c))))])
-                        ((inst some (Listof (Listof Char))) completions))]
+                                    (suffix characters (flatten (reverse c))))]
+                            [filtered-completions (filter (lambda (c) (not (null? c))) completions)])
+                        (if (null? filtered-completions)
+                            (none)
+                            ((inst some (Listof (Listof Char))) filtered-completions)))]
         ))))
 
 

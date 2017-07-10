@@ -26,25 +26,9 @@ SOFTWARE.
 
 (require racket/list)
 (require racket/match)
-(require "debug_printf.rkt")
+(require "../debug_printf.rkt")
 (require "env.rkt")
-
-(define interpreter-keywords (list 
-    'if
-    'or
-    'and
-    'cond
-    'set
-    'define
-    'lambda
-    'quote
-    'let
-    'let*
-    'letrec
-    'begin
-    'when
-    'unless
-    ))
+(require "supported-special-forms.rkt")
 
 (define (is-special-form? x)
     (if (member x interpreter-keywords) #t #f))

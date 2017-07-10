@@ -23,8 +23,8 @@ SOFTWARE.
 
 (require 
     "lexer-colours.rkt"
-    "../env.rkt"
-    "../interpreter.rkt"
+    "../interpreter/env.rkt"
+    "../interpreter/interpreter.rkt"
     racket/match
     (except-in racket/list flatten)
     racket/hash)
@@ -81,7 +81,27 @@ SOFTWARE.
 )
 #:transparent)
 
+#|
+TODO: need to track whether the acp is next to
+define acp
+send acp1 acp2
+set acp
+|#
+
+;what the previous autocomplete-point was
+(define-type Context (U
+    'normal
+    'special-form
+    'define
+    'define-name
+    'set
+    'send
+    'send-object-name
+    'send-method-name
+    ))
+
 (struct autocomplete-point (
+    [context : Context]
     [start-index : Integer]
     [end-index : Integer]
     [characters : (Listof Char)] ; the identifier and its colour escape sequence
@@ -399,7 +419,65 @@ to regular autocomplete
                                                             ([i : Char identifier])
                                                         (cons i acc))]
                                         [length (+ (saved-line-length line) (length identifier))])]
-                                [acc (add-to-acc acc (autocomplete-point index (+ index (length identifier)) (set-colour identifier colour)))])
+                                [acc (add-to-acc acc (autocomplete-point (get-context acc identifier) index (+ index (length identifier)) (set-colour identifier colour)))])
                             (lex (drop characters (length identifier)) acc (+ index (length identifier)) updated-line lines highlighted-pair)))
                             
                     ]))))
+
+(define define-chars-constant (string->list "define"))
+
+(define (is-define? identifier)
+    (or 
+        (equal? identifier define-chars-constant)
+        ;-syntax, -... etc(equal? identifier )
+    ))
+
+(define set-chars-constant (string->list "set!"))
+
+(define (is-set? identifier)
+    (equal? identifier set-chars-constant))
+
+(define send-chars-constant (string->list "send"))
+
+(define (is-send? identifier)
+    (equal? identifier send-chars-constant))
+
+(define (find-non-whitespace acc)
+    (if (null? acc)
+        '()
+        (if (eqv? #\space (first acc))
+            (find-non-whitespace (rest acc))
+            acc)))
+
+
+(define (get-context acc identifier)
+    (if (null? acc)
+        'normal
+        (match (first acc)
+            [(autocomplete-point context _ _ _)
+                (match context
+                    ['normal 'normal]
+                    ['special-form 'normal]
+                    ['define 'define-name]
+                    ['define-name 'normal]
+                    ['set 'normal]
+                    ['send 'send-object-name]
+                    ['send-object-name 'send-method-name]
+                    ['send-object-name 'normal]
+                    )]
+            [(highlight-point _ _ (cons c _))
+                (if (eqv? #\( c) 
+                    (let ([previous (get-context (find-non-whitespace (rest acc)) identifier)])
+                        (cond 
+                            [(equal? previous 'define-name) 'define-name]                            
+                            [(is-define? identifier) 'define]
+                            [(is-set? identifier) 'set]
+                            [(is-send? identifier) 'send]
+                        [else 'special-form]))
+                    'normal)]
+            [#\space
+                (get-context (find-non-whitespace acc) identifier)]
+
+            [_ 'normal]
+                    )))
+

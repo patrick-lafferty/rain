@@ -40,8 +40,8 @@ SOFTWARE.
 (require "builtins.rkt")
 (require "jobs.rkt")
 (require "debug_printf.rkt")
-(require "interpreter.rkt")
-(require "env.rkt")
+(require "interpreter/interpreter.rkt")
+(require "interpreter/env.rkt")
 
 ;libc imports
 (require ffi/unsafe)

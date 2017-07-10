@@ -28,7 +28,7 @@ SOFTWARE.
     racket/match
     (except-in "lexer.rkt" flatten)
     "../terminal.rkt"
-    "../env.rkt"
+    "../interpreter/env.rkt"
     "autocompletion.rkt"
     "../functional/maybe.rkt")
 
@@ -83,14 +83,14 @@ SOFTWARE.
             (equal? pair (highlighted-pair-second highlighted)))))
 
 
-(define (complete column start end characters)
+(define (complete column start end characters context)
     (if (and (<= column end) (>= column start))
         (if (null? characters)
             (none)
             (let-values ([(word colour-code) (splitf-at-right characters (lambda (x) (not (eqv? x #\m))))])
                 (match (reverse word) 
                     [(list #\m x ...)
-                        (let ([candidates (autocomplete (rest (reverse word)))])
+                        (let ([candidates (autocomplete (rest (reverse word)) context)])
                             (match candidates
                                 [(none) (none)]
                                 [(some '()) (none)]
@@ -112,8 +112,8 @@ SOFTWARE.
                         (expand-highlight acc characters)
                         (for/fold ([acc acc]) ([j characters])
                             (cons j acc)))]
-                [(autocomplete-point start end characters) 
-                    (let ([completion-candidate (complete column start end characters)])
+                [(autocomplete-point context start end characters) 
+                    (let ([completion-candidate (complete column start end characters context)])
                         (match completion-candidate
                             [(some completion)
                                 (let ([acc (foldl cons acc (set-colour completion 243))])
@@ -269,17 +269,19 @@ SOFTWARE.
             ;(printf "~n~n~n~v~n~n" current-line)
             (if current-line
                 (let ([completion-point (findf (match-lambda
-                        [(autocomplete-point start end characters)
+                        [(autocomplete-point context start end characters)
                             (and (<= column end) (>= column start))]
                         [_ #f]) (saved-line-lexed current-line))])
                     (if completion-point
                         (let ([start-index (autocomplete-point-start-index completion-point)]
-                                [end-index (autocomplete-point-end-index completion-point)])
+                                [end-index (autocomplete-point-end-index completion-point)]
+                                [context (autocomplete-point-context completion-point)])
                             (let ([candidate 
                                     (complete column
                                         start-index
                                         end-index
-                                        (autocomplete-point-characters completion-point))])
+                                        (autocomplete-point-characters completion-point)
+                                        context)])
                                 (match candidate
                                     [(some x) (some (list x start-index end-index))]
                                     [_ (none)])))

@@ -38,8 +38,8 @@ SOFTWARE.
 
 (require
     racket/list
-    "profile.rkt"
-    "debug_printf.rkt")
+    "../profile.rkt"
+    "../debug_printf.rkt")
 
 (define-namespace-anchor shell-namespace-anchor)
 (define shell-namespace (namespace-anchor->namespace shell-namespace-anchor))
