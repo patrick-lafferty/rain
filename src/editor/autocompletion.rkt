@@ -216,8 +216,6 @@ SOFTWARE.
         (set! known-identifiers thing)
 ))
 
-;(set! print? #t)
-
 (define (add-prefix 
     [prefix-to-add : (Maybe (Listof Char))]
     [trie : Trie]) : Trie
@@ -251,21 +249,21 @@ SOFTWARE.
         (match (trie-node-label trie)
             [(some x) x]
             [(none) '()])])
-            ;(printf "my-label: ~v, eow? ~v~n" my-label (trie-node-end-of-word trie))
+            (when print? (printf "my-label: ~v, eow? ~v~n" my-label (trie-node-end-of-word trie)))
         (if (trie-node-end-of-word trie)
-            (begin ;(printf "~ntri-eow ~v~n~n" trie)
+            (begin (when print? (printf "~ntri-eow ~v~n~n" trie))
             (cons (cons my-label path) acc)
             )
 
             (let ([path (cons my-label path)])
-                ;(printf "~ntri-path: ~v~n~n" path)
+                (when print? (printf "~ntri-path: ~v~n~n" path))
                 (for/fold ([acc : (Listof (Listof Char)) acc]) ([a : Trie (trie-node-children trie)])
                     (let ([child-label 
                             (match (trie-node-label a)
                                 [(some x) x]
                                 [(none) '()])])
                         (if (trie-node-end-of-word a)
-                            (begin ;(printf "~ntri-child eow: ~v~n" a)
+                            (begin (when print? (printf "~ntri-child eow: ~v~n" a))
                             (cons (cons child-label path) acc)
                             )
                             (collect-end-of-words a path acc))))))))
@@ -318,7 +316,7 @@ SOFTWARE.
     (define (traverse 
         [breadcrumbs : (Listof FindResult)] 
         [trie : Trie]) : Trie
-        ;(printf "~v                    " trie)
+        (when print? (printf "~v                    ~nEOW? ~v~n" trie (trie-node-end-of-word trie)))
         (match breadcrumbs
             [(cons (update-child index) remaining)
                 (traverse remaining (list-ref (trie-node-children trie) index))]
@@ -338,15 +336,29 @@ SOFTWARE.
                                 [(none) '()])]
                         [child (traverse remaining (list-ref (trie-node-children trie) index))]
                         [child-label (match (trie-node-label child) [(some x) x] [(none) '()])])
-                        (trie-node (some (append my-label child-label)) '() #t)))]
+                        (trie-node 
+                            (some (append my-label child-label)) 
+                            (trie-node-children child) 
+                            (trie-node-end-of-word child)
+                            )))]
             
-            [(cons (replace-node _ _ _ rest-child) _)
-                (trie-node (some rest-child) (trie-node-children trie) (trie-node-end-of-word trie))]
+            [(cons (replace-node _ common rest-id rest-child) _)
+                (if (null? rest-id)
+                    (trie-node (some rest-child) (trie-node-children trie) #t)
+                    (trie-node (some common) (trie-node-children trie) #f))]
+                ;(trie-node (some rest-child) (trie-node-children trie) (trie-node-end-of-word trie))]
+                ;(trie-node (some common) (trie-node-children trie) (trie-node-end-of-word trie))]
+                ;(trie-node (some common) (trie-node-children trie) #f)] ;(trie-node-end-of-word trie))]
+            [(cons (add-leaf _ rest-id) _ )
+                (when print? (printf "ADDLEAF FOUND~n"))
+
+                (trie-node (some '()) #|rest-id)|# '() #t)]
+
             [_ trie]))
     (if (null? characters) 
         (none)
         (let ([breadcrumbs (find characters known-identifiers 0)])
-            ;(printf "~n~n~v      ~v~n~n" characters breadcrumbs)
+            (when print? (printf "~n~n~v      ~v~n~n" characters breadcrumbs))
             (match breadcrumbs 
                 [(none) (none)]
                 [(some (cons (replace-node _ _ _ _) _)) (none)]
@@ -357,7 +369,7 @@ SOFTWARE.
                             [completions : (Listof (Listof Char)) 
                                 (for/list ;([acc : (Listof (Listof Char)) '()])
                                             ([c (collect-end-of-words subtrie '() '())])
-                                    ;(displayln (flatten (reverse c)))
+                                    (when print? (displayln (flatten (reverse c))))
                                     (suffix characters (flatten (reverse c))))])
                                #| (for/fold ([acc : (Listof (Listof Char)) '()]) ([trie : Trie (reverse (flatten-trie subtrie))]);(trie-node-children subtrie)])
                                 ;(printf "~n~ncollect: ~v~n~n" (reverse (collect-end-of-words subtrie '() '())))
@@ -389,7 +401,45 @@ SOFTWARE.
             (equal? (take-right lst len) potential-suffix)
             #f)))
 
-(define (suffix characters end)
-     (let-values ([(common rest-id rest-label)
-                        (split-common-prefix characters end)])
-            rest-label))
+(define (overlap characters end)
+    (define (recurse x)
+        (match x
+            [(cons head tail)
+                (let-values ([(common rest-characters rest-end) (split-common-prefix tail end)])
+                    (if (or (null? common) (not (null? rest-characters)))
+                        (recurse tail)
+                        rest-end))]
+
+                #|(if (list-prefix? tail end)
+                    #t
+                    (recurse tail))]|#
+            [_ '()]))
+
+    (let-values ([(common rest-characters rest-end) (split-common-prefix characters end)])
+        (if (or (null? common) (not (null? rest-characters)))
+            (recurse (rest characters))
+            rest-end)))
+    ;(recurse characters))
+
+
+(define (suffix characters end) 
+    ;(printf "overlaps? ~v ~v ~v~n" (overlaps? characters end) characters end)
+    (if (equal? characters end)
+        '()
+        (let ([result (overlap characters end)])
+            (if (null? result)
+                end
+                result))))
+    ;end)
+   #| (when print? (printf "suffix: ~v ~v ~n" characters end))
+    ;(if (list-suffix? characters end)
+        (let-values ([(common rest-id rest-label)
+                            (split-common-prefix characters end)])
+                rest-label))
+     ;   characters))
+     |#
+
+
+
+
+;(set! print? #t)
