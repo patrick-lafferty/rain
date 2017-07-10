@@ -30,7 +30,8 @@ SOFTWARE.
     racket/place
     "repl-place.rkt"
     "editor/syntax-highlighter.rkt"
-    "functional/maybe.rkt")
+    "functional/maybe.rkt"
+    "editor/autocompletion.rkt")
 
 (define pretty-printer (new pretty-printer%))
 
@@ -96,6 +97,10 @@ SOFTWARE.
     (let ([p (create-repl-place)])
         (printf "\e[6n")
         (input-loop p '() #t 0 1)))
+
+(set-definition-handler! 
+    (lambda (id) (add-symbol id)))
+
 
 (main)
 

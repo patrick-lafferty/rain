@@ -21,7 +21,8 @@ SOFTWARE.
 
 (provide
     interpret
-    is-special-form?)
+    is-special-form?
+    set-definition-handler!)
 
 (require racket/list)
 (require racket/match)
@@ -52,7 +53,16 @@ SOFTWARE.
     (match x
         [(list '!!local-or-string y) y]
         [_ x]))
-;TODO: add hook for defined-new-symbol so autocomplete can add to trie
+
+;TODO: ugly hack
+(define new-definition-handler (lambda (id) (void)))
+(define (set-definition-handler! handler)
+    (set! new-definition-handler handler))
+
+(define (create-definition environment id value)
+    (new-definition-handler id)
+    (hash-set! environment id value))
+
 (define (interpret code env [top-level? #f]) 
     (debug-printf "interpreting code ~v~n" code)
     (match code
@@ -127,24 +137,24 @@ SOFTWARE.
             (debug-printf "[interpret] define id: ~v param: ~v body: ~v~n" id param body)
             (when top-level? (hash-set! source-env id code))
             (let ([define-env (make-empty-env env)])
-                (hash-set! (first env) id (lambda (arg) 
+                (create-definition (first env) id (lambda (arg) 
                     (let ([argument (make-env param (interpret arg define-env) env)])
                         (foldl (lambda (x acc) (interpret x argument)) #f body)))))]
         [(list 'define (list id params ...) body ...)
             (debug-printf "[interpret] define id: ~v params: ~v body: ~v~n" id params body)
             (when top-level? (hash-set! source-env id code))
             (let ([define-env (make-empty-env env)])
-                (hash-set! (first env) id (lambda args
+                (create-definition (first env) id (lambda args
                     (let ([arguments (make-env params (interpret args define-env) env)])
                         (foldl (lambda (x acc) (interpret x arguments)) #f body)))))]
         [(list 'define (list id) body ...)
             (when top-level? (hash-set! source-env id code))
             (let ([define-env (make-empty-env env)])
-                (hash-set! (first env) id (lambda _ 
+                (create-definition (first env) id (lambda _ 
                         (foldl (lambda (x acc) (interpret x define-env)) #f body))))]
         [(list 'define id expr)
             (when top-level? (hash-set! source-env id code))
-            (hash-set! (first env) id (interpret expr env))]
+            (create-definition (first env) id (interpret expr env))]
         [(list 'lambda params body ...) 
             (debug-printf "[interpret] lambda params:~v body:~v~n" params body)
             (let ([params 

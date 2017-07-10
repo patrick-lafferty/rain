@@ -27,6 +27,7 @@ SOFTWARE.
  exec 
  ;performs different actions based on the symbol
  handle-symbol 
+ set-definition-handler!
 )
 
 (require racket/class)
