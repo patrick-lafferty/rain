@@ -104,6 +104,10 @@ SOFTWARE.
     (lambda (id) (add-symbol id)))
 
 
+(define unused-handle (plumber-add-flush! (current-plumber) (lambda (x) 
+    (plumber-flush-handle-remove! x)
+    (handle-symbol 'exit))))
+
 (main)
 
 (handle-symbol 'exit)
