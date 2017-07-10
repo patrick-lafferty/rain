@@ -81,13 +81,6 @@ SOFTWARE.
 )
 #:transparent)
 
-#|
-TODO: need to track whether the acp is next to
-define acp
-send acp1 acp2
-set acp
-|#
-
 ;what the previous autocomplete-point was
 (define-type Context (U
     'normal
@@ -233,7 +226,34 @@ to regular autocomplete
 
 ;starting at character index in line, look for the appropriate ( or [
 ;that closes that character
-(define (can-match? 
+
+(define (can-match?
+    [c : Char]
+    [index  : Integer]
+    [orig-line-index : Integer]
+    [line : saved-line]
+    [lines : (Listof saved-line)]
+    [acc : (Listof LexedString)]) : match-result
+
+    (if (null? acc)
+        (if (null? lines)
+            (match-result #f 0 0 0)
+            (let ([next-line (first lines)])
+                (can-match? c (saved-line-length next-line) orig-line-index 
+                        next-line (rest lines) (saved-line-lexed next-line))))
+        (match (first acc)
+            [(highlight-point line-index character-index characters)
+                (if (is-matching? (first characters) c)
+                    (if (hash-has-key? (saved-line-matching-pairs line) character-index)
+                        (can-match? c (sub1 index) orig-line-index line lines (rest acc))
+                        (if (hash-has-key? (saved-line-matching-pairs line) (foreign-key character-index))
+                            (can-match? c (sub1 index) orig-line-index line lines (rest acc))
+                            (match-result #t character-index (saved-line-index line) orig-line-index)))
+                    (can-match? c (sub1 index) orig-line-index line lines (rest acc)))]
+            [_ (can-match? c index orig-line-index line lines (rest acc))])))
+
+
+(define (can-match-old? 
         [c : Char] 
         [index : Integer] 
         [orig-line-index : Integer] 
@@ -341,7 +361,7 @@ to regular autocomplete
                                     [characters (cons c (saved-line-characters line))]
                                     [bracket-counter (sub1 (saved-line-bracket-counter line))]
                                     [length (add1 (saved-line-length line))])]
-                            [result (can-match? c index (saved-line-index updated-line) updated-line (accumulated-lines-lines lines))])
+                            [result (can-match? c index (saved-line-index updated-line) updated-line (accumulated-lines-lines lines) acc)])
                         (if (match-result-success result)
                             (let-values ([(current previous) 
                                     (store-match index result updated-line (accumulated-lines-lines lines))])
