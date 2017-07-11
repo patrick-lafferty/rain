@@ -28,7 +28,7 @@ It is advised to get the [latest release](https://github.com/patrick-lafferty/lu
 
 Download the latest release:
 
-wget https://github.com/patrick-lafferty/lush/releases/download/0.1.0/lush.tar.xz
+wget https://github.com/patrick-lafferty/lush/releases/download/0.2.0/lush.tar.xz
 
 Then extract lush some place you want:
 

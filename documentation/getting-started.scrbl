@@ -26,7 +26,7 @@ read on to the next chapters.
 
 @section{Installation}
 
-@(require "../version.rkt")
+@(require "../src/version.rkt")
 
 Lush requires a Unix environment. It currently is only tested on the Windows Subsystem for Linux, but should work for any *nix.
 If you want to use it with WSL, make sure you have the creators update as it substantially improved WSL.
