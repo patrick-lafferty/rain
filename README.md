@@ -9,6 +9,7 @@ Lush is an interactive [Racket](http://racket-lang.org/) shell. The above screen
   * special forms
   * user definitons
   * definitions from racket/{base/class/list}
+* auto-indenting code
 * a minimal Racket interpreter
 
 It also features:
