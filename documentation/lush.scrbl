@@ -21,7 +21,7 @@ SOFTWARE.
 @(require scribble/core
           scribble/manual)
 
-@margin-note{This page was last updated on June 29/2017}
+@margin-note{This page was last updated on July 10/2017}
 @title[#:tag "top" #:version "" ]{LuSH - The Lu Shell}
 
 @author["Patrick Lafferty"]
@@ -31,7 +31,8 @@ Lush is a command-line shell that uses Racket as its scripting language.
 It currently features:
 
 @itemlist[@item{a basic command language that supports job control, piping, and standard stream redirects}
-        @item{a Racket interpreter}]
+        @item{a Racket interpreter}
+        @item{a command line with syntax highlighting, matching bracket highlighting, auto-indenting and auto-completion}]
 
 @table-of-contents[]
 
