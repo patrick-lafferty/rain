@@ -58,7 +58,7 @@ SOFTWARE.
 (define (write-line line column show-prompt?)
     (printf "\e[2K")
     (printf "\e[1G")
-    
+
     (when show-prompt?
         (let ([print-prompt (lookup 'print-prompt (list repl-env profile-env))])
             (print-prompt)))
@@ -145,6 +145,7 @@ SOFTWARE.
                 (let* ([expanded (expand acc highlighted column)]
                         [flattened (flatten expanded)]
                         [string (list->string (reverse flattened))]
+                        [column (max column 0)]
                         [indented (string-append (make-string (max 0 (- indent column)) #\space) string)])
                     (write-line indented indent show-prompt?)))
 
@@ -187,6 +188,8 @@ SOFTWARE.
                     (set! current-accumulated-lines (add-line-to-accumulated line lines))))
                     
             (set! show-prompt? #f)
+            (do-print (saved-line-lexed current-line) (saved-line-indent current-line) -1 show-prompt?)
+            (remove-old-highlight)
             (let ([bracket-counter (saved-line-bracket-counter current-line)])
                 (cond
                     [(> bracket-counter 0)

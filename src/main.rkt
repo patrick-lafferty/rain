@@ -76,8 +76,8 @@ SOFTWARE.
             [(list 'incomplete line)
                 (printf "\e[6n")
                 (flush-output)
-                (printf "\n")
                 (send pretty-printer new-line)
+                (printf "\n")
                 (send pretty-printer print-line line #f current-position (add1 current-row))
                 (input-loop channel line #f 0 (add1 current-row))]
             [(list 'update show-prompt? line)
