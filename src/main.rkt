@@ -40,6 +40,10 @@ SOFTWARE.
     (let ([line (place-channel-get channel)])
         (match line
             ['tab
+                (draw-listbox test-box 
+                    (cursor-position-row current-cursor) 
+                    (cursor-position-column current-cursor))
+
                 (let ([completion-candidate (send pretty-printer complete-if-possible current-position)])
                     (match completion-candidate
                         [(some (list x start-index end-index)) 
@@ -88,6 +92,7 @@ SOFTWARE.
                 (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))
+                (set-current-column! ( + 3 position))
                 (send pretty-printer highlight-matching-bracket position)
                 (flush-output)
                 (input-loop channel current-line show-prompt? position current-row)]
@@ -103,11 +108,24 @@ SOFTWARE.
 (set-definition-handler! 
     (lambda (id) (add-symbol id)))
 
-
 (define unused-handle (plumber-add-flush! (current-plumber) (lambda (x) 
     (plumber-flush-handle-remove! x)
     (handle-symbol 'exit))))
 
+(require "terminal/widget.rkt")
+
+(enter-cursor-address-mode)
+
+(set-current-column! 3)
+
+;(fill-screen)
+;(sleep 3)
+
+;(draw-listbox test-box)
+;(flush-output)
+;(sleep 10)
 (main)
+;(test)
+(exit-cursor-address-mode)
 
 (handle-symbol 'exit)
