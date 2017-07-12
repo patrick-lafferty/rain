@@ -1,14 +1,11 @@
 #lang racket/base
 
+;todo: hide cursor before moving and rendering, show cursor afterwards
 (provide (all-defined-out))
 
-;todo: hide cursor before moving and rendering, show cursor afterwards
-
-(define (enter-cursor-address-mode)
-    (printf "\e[?1049h"))
-
-(define (exit-cursor-address-mode)
-    (printf "\e[?1049l"))
+(require "escape-sequences.rkt"
+    "dropdown.rkt"
+    racket/class)
 
 (struct cursor-position (row column))
 
@@ -41,12 +38,6 @@
 
 (define random-buffer (make-random-buffer))
 
-(define (set-cursor-row row)
-    (printf "\e[~a;H" row))
-
-(define (set-cursor-position row column)
-    (printf "\e[~a;~aH" row column))
-
 (define (move-cursor-to-current)
     (set-cursor-position 
         (cursor-position-row current-cursor)
@@ -59,25 +50,24 @@
         (set-cursor-row (add1 j))))
 
 (define test-box 
-    (listbox (random 5 15) (random 10 40)
+    (new dropdown% 
+        [lines 
+            (list
+                "this is line 1"
+                "this is line 2"
+                "this is a super long line 3"
+                "this is line 4")]))
+    #|(listbox (random 5 15) (random 10 40)
         (for/list ([i (in-range 4)])
-            (make-random-line 20 (integer->char (+ 49 i))))))
-
-(define (set-highlight)
-    (printf "\e[38;5;0m")
-    (printf "\e[48;5;183m"))
-
-(define (clear-highlight)
-    (printf "\e[0m"))
+            (make-random-line 20 (integer->char (+ 49 i))))))|#
 
 (define (draw-listbox box row column)
-    #|(let ([row (listbox-row box)]
-            [column (listbox-column box)])|#
-        (set-cursor-position row column)
+        #|(set-cursor-position row column)
         (for ([line (in-list (listbox-lines box))]
                 [offset (in-naturals)])
             (set-highlight)
             (display (list->string (line-characters line)))
             (clear-highlight)
-            (set-cursor-position (+ row offset 1) column))
+            (set-cursor-position (+ row offset 1) column))|#
+    (send test-box draw row column 20)
     (move-cursor-to-current));)

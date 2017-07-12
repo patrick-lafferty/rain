@@ -37,10 +37,15 @@ SOFTWARE.
 
 (define (input-loop channel current-line show-prompt? current-position current-row)
     (send pretty-printer print-line current-line show-prompt? current-position current-row)
+
+    (set-current-row! current-row)
+    (set-current-column! current-position)
+
     (let ([line (place-channel-get channel)])
         (match line
             ['tab
                 (draw-listbox test-box 
+                    ;current-row
                     (cursor-position-row current-cursor) 
                     (cursor-position-column current-cursor))
 
@@ -112,7 +117,8 @@ SOFTWARE.
     (plumber-flush-handle-remove! x)
     (handle-symbol 'exit))))
 
-(require "terminal/widget.rkt")
+(require "terminal/widget.rkt"
+    "terminal/escape-sequences.rkt")
 
 (enter-cursor-address-mode)
 
