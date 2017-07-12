@@ -22,7 +22,10 @@ SOFTWARE.
 (provide dropdown%)
 
 (require racket/class
-    "escape-sequences.rkt")
+    racket/list
+    "bounding-box.rkt"
+    "escape-sequences.rkt"
+    "widget.rkt")
 
 #|
 A dropdown is a widget that displays a list of lines
@@ -31,7 +34,7 @@ between the line and the bottom of the screen),
 otherwise above the line
 |#
 (define dropdown% 
-    (class object% 
+    (class widget% 
         (init lines)
         (super-new)
 
@@ -54,14 +57,20 @@ otherwise above the line
 
                     ;have to draw above the line
                     (- row number-of-lines))])
-                (set-cursor-position row column)
+                (move-cursor row column)
                 (set-highlight)
                 
                 (for ([line (in-list normalized-lines)]
                         [offset (in-naturals)])
                     (display line)
-                    (set-cursor-position (+ row offset 1) column))
+                    (move-cursor (+ row offset 1) column))
 
-                (clear-highlight)))
+                (clear-highlight)
+                (send this set-bounding-box 
+                    (bounding-box 
+                        (point row column)
+                        (point (+ row number-of-lines) 
+                            (+ column (string-length (first normalized-lines))))))
+                ))
 
     ))

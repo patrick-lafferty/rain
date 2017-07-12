@@ -21,21 +21,14 @@ SOFTWARE.
 
 (provide (all-defined-out))
 
-(define (enter-cursor-address-mode)
-    (printf "\e[?1049h"))
+(struct point (row column) #:transparent)
 
-(define (exit-cursor-address-mode)
-    (printf "\e[?1049l"))
+(struct bounding-box
+    (start ;point
+    end)
+    #:transparent) ;point
 
-(define (set-cursor-row row)
-    (printf "\e[~a;H" row))
-
-(define (move-cursor row column)
-    (printf "\e[~a;~aH" row column))
-
-(define (set-highlight)
-    (printf "\e[38;5;0m")
-    (printf "\e[48;5;183m"))
-
-(define (clear-highlight)
-    (printf "\e[0m"))
+(define (make-empty-bounding-box)
+    (bounding-box
+        (point 0 0)
+        (point 0 0)))

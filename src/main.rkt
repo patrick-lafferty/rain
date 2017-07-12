@@ -38,16 +38,15 @@ SOFTWARE.
 (define (input-loop channel current-line show-prompt? current-position current-row)
     (send pretty-printer print-line current-line show-prompt? current-position current-row)
 
-    (set-current-row! current-row)
-    (set-current-column! current-position)
+    ;(set-current-row! current-row)
+    ;(set-current-column! current-position)
+    
+    (send screen set-cursor-position current-row current-position)
 
     (let ([line (place-channel-get channel)])
         (match line
             ['tab
-                (draw-listbox test-box 
-                    ;current-row
-                    (cursor-position-row current-cursor) 
-                    (cursor-position-column current-cursor))
+                (send screen add-widget dropdown)
 
                 (let ([completion-candidate (send pretty-printer complete-if-possible current-position)])
                     (match completion-candidate
@@ -97,7 +96,10 @@ SOFTWARE.
                 (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))
-                (set-current-column! ( + 3 position))
+                ;(set-current-column! ( + 3 position))
+                
+                ;(send screen set-cursor-position current-row (+ 3 position))
+
                 (send pretty-printer highlight-matching-bracket position)
                 (flush-output)
                 (input-loop channel current-line show-prompt? position current-row)]
@@ -117,21 +119,23 @@ SOFTWARE.
     (plumber-flush-handle-remove! x)
     (handle-symbol 'exit))))
 
-(require "terminal/widget.rkt"
+(require "terminal/screen.rkt"
+    "terminal/dropdown.rkt"
     "terminal/escape-sequences.rkt")
 
 (enter-cursor-address-mode)
 
-(set-current-column! 3)
+(define screen (new screen%))
+(define dropdown (new dropdown%
+        [lines 
+            (list
+                "this is line 1"
+                "this is line 2"
+                "this is a super long line 3"
+                "this is line 4")]))
 
-;(fill-screen)
-;(sleep 3)
-
-;(draw-listbox test-box)
-;(flush-output)
-;(sleep 10)
 (main)
-;(test)
+
 (exit-cursor-address-mode)
 
 (handle-symbol 'exit)

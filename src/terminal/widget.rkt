@@ -1,16 +1,26 @@
 #lang racket/base
 
 ;todo: hide cursor before moving and rendering, show cursor afterwards
-(provide (all-defined-out))
+(provide widget%)
 
 (require "escape-sequences.rkt"
-    "dropdown.rkt"
+    ;"dropdown.rkt"
+    "bounding-box.rkt"
     racket/class)
 
-(struct cursor-position (row column))
+(define widget%
+    (class object%
+        (super-new)
 
-(define current-cursor (cursor-position 1 1))
+        (define bounding-box (make-empty-bounding-box))
 
+        (define/public (set-bounding-box box)
+            (set! bounding-box box))
+
+        (define/public (get-bounding-box) bounding-box)
+    ))
+
+#|
 (define (set-current-row! row)
     (set! current-cursor 
         (struct-copy cursor-position current-cursor
@@ -21,10 +31,7 @@
         (struct-copy cursor-position current-cursor
             [column column])))
 
-(struct line (characters))
 (struct buffer (lines))
-
-(struct listbox (row column lines))
 
 (define (make-random-line [length 100] [first #\1])
     (line (cons first
@@ -57,17 +64,8 @@
                 "this is line 2"
                 "this is a super long line 3"
                 "this is line 4")]))
-    #|(listbox (random 5 15) (random 10 40)
-        (for/list ([i (in-range 4)])
-            (make-random-line 20 (integer->char (+ 49 i))))))|#
 
 (define (draw-listbox box row column)
-        #|(set-cursor-position row column)
-        (for ([line (in-list (listbox-lines box))]
-                [offset (in-naturals)])
-            (set-highlight)
-            (display (list->string (line-characters line)))
-            (clear-highlight)
-            (set-cursor-position (+ row offset 1) column))|#
     (send test-box draw row column 20)
-    (move-cursor-to-current));)
+    (move-cursor-to-current))
+|#

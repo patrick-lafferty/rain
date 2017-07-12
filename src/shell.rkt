@@ -154,7 +154,7 @@ and if not checks to see if its a value we can print
     ))
 
 (define (shutdown-lush)
-    (exit-cursor-address-mode)
+    ;(exit-cursor-address-mode)
     (send master-termios quit 0)
     (exit))
 
