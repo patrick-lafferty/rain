@@ -9,3 +9,11 @@ int getTerminalWidth()
 
     return ws.ws_col;
 }
+
+int getTerminalHeight()
+{
+    struct winsize ws;
+    ioctl(0, TIOCGWINSZ, &ws);
+
+    return ws.ws_row;
+}

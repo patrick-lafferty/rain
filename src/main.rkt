@@ -71,6 +71,9 @@ SOFTWARE.
                 (printf "\e[6n")
                 (flush-output)
                 (send pretty-printer new-line)
+
+                (send screen add-line line)
+
                 (send pretty-printer reset)
                 (with-handlers
                     ([exn:fail? (lambda (e) (displayln e))])
@@ -85,6 +88,9 @@ SOFTWARE.
                 (printf "\e[6n")
                 (flush-output)
                 (send pretty-printer new-line)
+
+                (send screen add-line (list->string line))
+
                 (printf "\n")
                 (send pretty-printer print-line line #f current-position (add1 current-row))
                 (input-loop channel line #f 0 (add1 current-row))]
@@ -119,13 +125,15 @@ SOFTWARE.
     (plumber-flush-handle-remove! x)
     (handle-symbol 'exit))))
 
-(require "terminal/screen.rkt"
+(require 
+    "terminal.rkt"
+    "terminal/screen.rkt"
     "terminal/dropdown.rkt"
     "terminal/escape-sequences.rkt")
 
 (enter-cursor-address-mode)
 
-(define screen (new screen%))
+(define screen (new screen% [height (getTerminalHeight)]))
 (define dropdown (new dropdown%
         [lines 
             (list
@@ -136,6 +144,6 @@ SOFTWARE.
 
 (main)
 
-(exit-cursor-address-mode)
+;(exit-cursor-address-mode)
 
 (handle-symbol 'exit)

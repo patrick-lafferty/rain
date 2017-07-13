@@ -30,11 +30,12 @@ SOFTWARE.
 
 (define screen%
     (class object%
+        (init height)
         (super-new)
-        (define buffer (new screen-buffer%))
+        (define buffer (new screen-buffer% [height height]))
         (define current-cursor (cursor-position 1 1))
         (define widgets '())
-        (define height 20)
+        (define screen-height 20)
 
         (define/public (add-line line)
             (send buffer add-line line))
@@ -51,13 +52,13 @@ SOFTWARE.
 
             (send widget draw (cursor-position-row current-cursor)
                                 (cursor-position-column current-cursor)
-                                height)
+                                screen-height)
             (move-cursor (cursor-position-row current-cursor)
                         (cursor-position-column current-cursor)))
 
         (define/public (remove-widget widget)
             (let* ([box (send widget get-bounding-box)]
-                    [lines (send buffer get-lines-in-box box)]
+                    [lines (send buffer get-lines-in-viewport box)]
                     [row (point-row (bounding-box-start box))]
                     [column (point-column (bounding-box-start box))])
 

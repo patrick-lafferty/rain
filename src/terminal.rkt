@@ -24,7 +24,8 @@ SOFTWARE.
 (provide 
  ;makes the given process group the foreground
  set-foreground-process-group
- getTerminalWidth)
+ getTerminalWidth
+ getTerminalHeight)
 
 (require ffi/unsafe)
 (require ffi/unsafe/define)
@@ -37,6 +38,7 @@ SOFTWARE.
 (define-ffi-definer define-libterminal (ffi-lib libterminal-path '(#f)))
 
 (define-libterminal getTerminalWidth (_fun -> _int))
+(define-libterminal getTerminalHeight (_fun -> _int))
 
 (define (set-foreground-process-group terminal-descriptor group)
     (tcsetpgrp terminal-descriptor group))
