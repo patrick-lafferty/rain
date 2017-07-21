@@ -94,12 +94,7 @@ SOFTWARE.
                             (match candidates
                                 [(none) (none)]
                                 [(some '()) (none)]
-                                [(some completion) 
-                                    ;(printf "~n~n")
-                                    ;(for ([c completion])
-                                    ;    (display c))
-                                    ;(printf "~n~n")
-                                    (some (first completion))]))]
+                                [(some completion) (some (first completion))]))]
                     [_ (none)])))
         (none)))
 
@@ -161,7 +156,6 @@ SOFTWARE.
                         current-accumulated-lines
                         highlighted)])
                 (do-print acc (+ (if (> indent 0) 2 0) indent column) column show-prompt?)
-                ;(set! current-line line)
                 (let ([line 
                     (struct-copy saved-line line
                         [lexed acc]

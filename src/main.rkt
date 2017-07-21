@@ -31,7 +31,8 @@ SOFTWARE.
     "repl-place.rkt"
     "editor/syntax-highlighter.rkt"
     "functional/maybe.rkt"
-    "editor/autocompletion.rkt")
+    "editor/autocompletion.rkt"
+    "interpreter/env.rkt")
 
 (define pretty-printer (new pretty-printer%))
 
@@ -61,27 +62,38 @@ SOFTWARE.
                 (send pretty-printer reset)
                 (input-loop channel '() #t 0 current-row)]
             ['newline 
+                (send screen remove-widget dropdown)
+
                 (printf "\e[6n")
                 (flush-output)
                 ;(displayln "newline")
                 (send pretty-printer new-line)
                 (input-loop channel '() #t 0 (add1 current-row))]
             [(list 'finished line)
+                (send screen remove-widget dropdown)
                 (displayln "")
                 (printf "\e[6n")
                 (flush-output)
+
+                (let ([line
+                    (if show-prompt?
+                        (let ([get-prompt-string (lookup 'get-prompt-string (list repl-env profile-env))])
+                            (string-append (get-prompt-string) line))
+                        line)])
+
+                    (send screen add-line line))
+
                 (send pretty-printer new-line)
-
-                (send screen add-line line)
-
                 (send pretty-printer reset)
+
                 (with-handlers
-                    ([exn:fail? (lambda (e) (displayln e))])
+                    ([exn:fail? (lambda (e) (writeln e))])
                     (let* ([code (read (open-input-string line))])    
                         (cond
                             [(list? code) (exec code)]
                             [(symbol? code) (handle-symbol code)]
-                            [ else (printf "unknown: ~a~n" code)])))
+                            [ else (void)])));(printf "unknown: ~a~n" code)])))
+
                 (input-loop channel '() #t 0 current-row)]
 
             [(list 'incomplete line)

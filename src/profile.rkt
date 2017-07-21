@@ -34,3 +34,6 @@ SOFTWARE.
 
 (define (print-prompt)
     (display "λ "))
+
+(define (get-prompt-string)
+    "λ ")

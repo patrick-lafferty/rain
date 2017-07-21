@@ -148,9 +148,11 @@ and if not checks to see if its a value we can print
         ['exit (shutdown-lush)]
         ['fg (send launcher fg)]
         [ _ (let ([value (lookup s (list repl-env profile-env))])
-                (if value
+                (void))]
+                #|(if value
                     (displayln value)
                     (printf "~a is undefined~n" s)))]
+                    |#
     ))
 
 (define (shutdown-lush)
