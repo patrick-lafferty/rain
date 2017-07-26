@@ -94,7 +94,7 @@ SOFTWARE.
                             (match candidates
                                 [(none) (none)]
                                 [(some '()) (none)]
-                                [(some completion) (some (first completion))]))]
+                                [(some completion) (some completion)]))]
                     [_ (none)])))
         (none)))
 
@@ -111,7 +111,7 @@ SOFTWARE.
                     (let ([completion-candidate (complete column start end characters context)])
                         (match completion-candidate
                             [(some completion)
-                                (let ([acc (foldl cons acc (set-colour completion 243))])
+                                (let ([acc (foldl cons acc (set-colour (first completion) 243))])
                                     (for/fold ([acc acc]) ([j characters])
                                         (cons j acc)))]
                             [(none)

@@ -36,6 +36,8 @@ SOFTWARE.
 
 (define pretty-printer (new pretty-printer%))
 
+(define showing-dropdown? #f)
+
 (define (input-loop channel current-line show-prompt? current-position current-row)
     (send pretty-printer print-line current-line show-prompt? current-position current-row)
 
@@ -46,14 +48,42 @@ SOFTWARE.
 
     (let ([line (place-channel-get channel)])
         (match line
+            ['f1
+                (send screen remove-widget dropdown)
+                (let ([completion-candidate (send pretty-printer complete-if-possible current-position)])
+                    (match completion-candidate
+                        [(some (list candidates start-index end-index))
+                            (let ([lines (map (lambda (l) (list->string l)) candidates)])
+                                ;(printf "~n~n~nlines:~a ~a~n~n" (length lines) lines)
+                                (set! dropdown (new selectable-dropdown%
+                                    [lines lines]))
+                                (send screen add-widget dropdown))]
+                        
+                        [_ (void)])) 
+                (set! showing-dropdown? #t)
+            ]
+            ['up 
+                (if showing-dropdown?
+                    (begin 
+                        (send dropdown select-up)
+                        (send screen add-widget dropdown)
+                        (place-channel-put channel 'nope))
+                    (place-channel-put channel 'history))
+                ]
+            ['down
+                (if showing-dropdown?
+                    (begin 
+                        (send dropdown select-down)
+                        (send screen add-widget dropdown)
+                        (place-channel-put channel 'nope))
+                    (place-channel-put channel 'history))
+            ]
             ['tab
-                (send screen add-widget dropdown)
 
                 (let ([completion-candidate (send pretty-printer complete-if-possible current-position)])
                     (match completion-candidate
                         [(some (list x start-index end-index)) 
-                            ;(printf "~n~ncompleting ~v between ~v and ~v~n~n" x start-index end-index)
-                            (place-channel-put channel (list 'replace x start-index end-index))]
+                            (place-channel-put channel (list 'replace (first x) start-index end-index))]
                         [_ (place-channel-put channel 'continue)]))
                 (input-loop channel current-line show-prompt? current-position current-row)]
             ['clear 
@@ -63,6 +93,7 @@ SOFTWARE.
                 (input-loop channel '() #t 0 current-row)]
             ['newline 
                 (send screen remove-widget dropdown)
+                (set! showing-dropdown? #f)
 
                 (printf "\e[6n")
                 (flush-output)
@@ -71,6 +102,7 @@ SOFTWARE.
                 (input-loop channel '() #t 0 (add1 current-row))]
             [(list 'finished line)
                 (send screen remove-widget dropdown)
+                (set! showing-dropdown? #f)
                 (displayln "")
                 (printf "\e[6n")
                 (flush-output)
@@ -124,7 +156,9 @@ SOFTWARE.
                 (input-loop channel current-line show-prompt? position current-row)]
             [(list 'cursor-position row column)
                 (input-loop channel current-line show-prompt? current-position row)]
-    )))
+    )
+        (input-loop channel current-line show-prompt? current-position current-row)
+    ))
 
 (define (main)
     (let ([p (create-repl-place)])
@@ -141,13 +175,13 @@ SOFTWARE.
 (require 
     "terminal.rkt"
     "terminal/screen.rkt"
-    "terminal/dropdown.rkt"
+    "terminal/widgets/selectable-dropdown.rkt"
     "terminal/escape-sequences.rkt")
 
 (enter-cursor-address-mode)
 
 (define screen (new screen% [width (getTerminalWidth)] [height (getTerminalHeight)]))
-(define dropdown (new dropdown%
+(define dropdown (new selectable-dropdown%
         [lines 
             (list
                 "this is line 1"

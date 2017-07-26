@@ -23,9 +23,9 @@ SOFTWARE.
 
 (require racket/class
     racket/list
-    "bounding-box.rkt"
-    "escape-sequences.rkt"
-    "widget.rkt")
+    "../bounding-box.rkt"
+    "../escape-sequences.rkt"
+    "../widget.rkt")
 
 #|
 A dropdown is a widget that displays a list of lines
@@ -36,20 +36,21 @@ otherwise above the line
 (define dropdown% 
     (class widget% 
         (init lines)
+        (inherit set-bounding-box)
         (super-new)
 
-        (define normalized-lines
+        (field [normalized-lines
             (let* ([lengths (map string-length lines)]
                     [max-length (apply max lengths)])
                 (for/list ([line (in-list lines)] [line-length (in-list lengths)])
                     (let ([difference (- max-length line-length)])
                         (if (> difference 0)
                             (string-append line (make-string difference #\space))
-                            line)))))
+                            line))))])
 
-        (define number-of-lines (length lines))
+        (field [number-of-lines (length lines)])
 
-        (define/public (draw row column terminal-height)
+        (define/public (draw row column terminal-height [before-line #f])
             (let ([row 
                 (if (> terminal-height (+ row number-of-lines 1))
                     ;there's enough room to draw below the line
@@ -59,9 +60,11 @@ otherwise above the line
                     (- row number-of-lines))])
                 (move-cursor row column)
                 (set-highlight)
-                ;(printf "~n~n~n~n~n~n~n~n~nmove column ~a~n~n" column) 
+
                 (for ([line (in-list normalized-lines)]
                         [offset (in-naturals)])
+                    (when before-line
+                        (before-line offset))
                     (display line)
                     (move-cursor (+ row offset 1) column))
 

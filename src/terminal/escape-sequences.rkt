@@ -33,9 +33,9 @@ SOFTWARE.
 (define (move-cursor row column)
     (printf "\e[~a;~aH" row column))
 
-(define (set-highlight)
+(define (set-highlight [colour 183])
     (printf "\e[38;5;0m")
-    (printf "\e[48;5;183m"))
+    (printf "\e[48;5;~am" colour))
 
 (define (clear-highlight)
     (printf "\e[0m"))
