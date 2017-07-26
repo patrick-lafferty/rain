@@ -42,7 +42,7 @@ SOFTWARE.
     ;(set-current-row! current-row)
     ;(set-current-column! current-position)
     
-    (send screen set-cursor-position current-row current-position)
+    ;(send screen set-cursor-position current-row current-position)
 
     (let ([line (place-channel-get channel)])
         (match line
@@ -117,6 +117,7 @@ SOFTWARE.
                 ;(set-current-column! ( + 3 position))
                 
                 ;(send screen set-cursor-position current-row (+ 3 position))
+                (send screen set-cursor-position current-row (if show-prompt? (+ 3 position) position))
 
                 (send pretty-printer highlight-matching-bracket position)
                 (flush-output)
@@ -145,7 +146,7 @@ SOFTWARE.
 
 (enter-cursor-address-mode)
 
-(define screen (new screen% [height (getTerminalHeight)]))
+(define screen (new screen% [width (getTerminalWidth)] [height (getTerminalHeight)]))
 (define dropdown (new dropdown%
         [lines 
             (list

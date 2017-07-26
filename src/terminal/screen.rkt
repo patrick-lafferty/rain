@@ -30,9 +30,9 @@ SOFTWARE.
 
 (define screen%
     (class object%
-        (init height)
+        (init width height)
         (super-new)
-        (define buffer (new screen-buffer% [height height]))
+        (define buffer (new screen-buffer% [width width] [height height]))
         (define current-cursor (cursor-position 1 1))
         (define widgets '())
         (define screen-height 20)
@@ -41,6 +41,7 @@ SOFTWARE.
             (send buffer add-line line))
 
         (define/public (set-cursor-position row column)
+            ;(printf "~n~n~n~nset column~a" column)
             (set! current-cursor (cursor-position row column)))
 
         (define/public (add-widget widget)
@@ -57,19 +58,21 @@ SOFTWARE.
                         (cursor-position-column current-cursor)))
 
         (define/public (remove-widget widget)
-            (let* ([box (send widget get-bounding-box)]
-                    [lines (send buffer get-lines-in-viewport box)]
-                    [row (point-row (bounding-box-start box))]
-                    [column (point-column (bounding-box-start box))])
+            (when (memq widget widgets)
+                (let* ([box (send widget get-bounding-box)]
+                        ;[lines (send buffer get-lines-in-viewport box)]
+                        [lines (send buffer get-lines box)]
+                        [row (point-row (bounding-box-start box))]
+                        [column (point-column (bounding-box-start box))])
 
-                (move-cursor row column)
-                
-                (for ([line (in-list lines)] [offset (in-naturals)])
-                    (display line)
-                    (move-cursor (+ row offset 1) column)))
+                    (move-cursor row column)
+                    
+                    (for ([line (in-list lines)] [offset (in-naturals)])
+                        (display line)
+                        (move-cursor (+ row offset 1) column)))
 
-            (move-cursor (cursor-position-row current-cursor)
-                        (cursor-position-column current-cursor)))
+                (move-cursor (cursor-position-row current-cursor)
+                            (cursor-position-column current-cursor))))
 
 
     ))

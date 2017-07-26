@@ -59,7 +59,7 @@ otherwise above the line
                     (- row number-of-lines))])
                 (move-cursor row column)
                 (set-highlight)
-                
+                ;(printf "~n~n~n~n~n~n~n~n~nmove column ~a~n~n" column) 
                 (for ([line (in-list normalized-lines)]
                         [offset (in-naturals)])
                     (display line)

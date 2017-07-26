@@ -31,7 +31,7 @@ SOFTWARE.
 
 (define screen-buffer%
     (class object%
-        (init height)
+        (init width height)
         (super-new)
         #|
         lines stores the complete history of lines entered up to
@@ -40,12 +40,13 @@ SOFTWARE.
         we can only display a certain number of rows at a time,
         which is stored in viewport
         |#
+        (define screen-width width)
         (define screen-height height)
-        (define lines (make-list height ""))
+        (define lines (make-list height (make-string width #\space)))
         (define current-viewport (viewport screen-height 0))
 
         (define/public (add-line line)  
-            (set! lines (cons line lines))
+            (set! lines (cons (pad-line line screen-width) lines))
             (set! current-viewport (struct-copy viewport current-viewport
                 [start (min screen-height (length lines))])))
                 
@@ -68,8 +69,20 @@ SOFTWARE.
                     ;(printf "~nline-count: ~v~nbounds: ~v~n" line-count bounds);bounds: (2 1) (6 28)
                 (values start-row end-row)))
 
+        (define/public (get-lines bounds)
+            (let* ([lines 
+                    (take (drop lines (- screen-height (point-row (bounding-box-end bounds)))) 
+                        (- (point-row (bounding-box-end bounds)) (point-row (bounding-box-start bounds))))]
+                   [bounded-lines (map 
+                        (lambda (l) 
+                            (substring l (sub1 (point-column (bounding-box-start bounds)))
+                                        (point-column (bounding-box-end bounds))))
+                        lines)])
+                (reverse bounded-lines)))
+
         (define/public (get-lines-in-viewport bounds)
-            ;(printf "~nlines: ~v~nviewport: ~v~n" lines current-viewport);("\ augment") and 1 and 0?
+            (void))
+            #|;(printf "~nlines: ~v~nviewport: ~v~n" lines current-viewport);("\ augment") and 1 and 0?
             (let-values ([(start-row end-row) (local-to-world bounds current-viewport)])
                 ;(printf "~nstart-row: ~vend-row: ~v~n" start-row end-row);2 and 6?
                 (let* ([lines (reverse (take lines (viewport-start current-viewport)))]
@@ -79,4 +92,5 @@ SOFTWARE.
                       [width ending-column])
                     (for/list ([line (in-list bounded-lines)])
                         (substring (pad-line line width) starting-column ending-column)))))
+                        |#
     ))
