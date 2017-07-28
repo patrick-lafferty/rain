@@ -28,13 +28,23 @@
                 (set-highlight 27)
                 (set-highlight)))
 
+        #|(define (get-lines-to-draw)
+            (let ([line-count number-of-lines])
+                (if (> line-count max-lines-to-draw)
+                    (if (> (- line-count selected-index) max-lines-to-draw)
+                        (values 0
+                            (take (drop normalized-lines (- line-count selected-index max-lines-to-draw)) max-lines-to-draw))
+                        (values (- max-lines-to-draw (- line-count selected-index) ) (take normalized-lines max-lines-to-draw)))
+                    (values selected-index normalized-lines))))
+                    |#
+
         (define (get-lines-to-draw)
             (let ([line-count number-of-lines])
                 (if (> line-count max-lines-to-draw)
                     (if (> (- line-count selected-index) max-lines-to-draw)
-                        (values 0 
-                            (take (drop normalized-lines (- line-count selected-index max-lines-to-draw)) max-lines-to-draw))
-                        (values (- line-count selected-index) (take normalized-lines max-lines-to-draw)))
+                        (values 0 (take (drop normalized-lines selected-index) max-lines-to-draw))
+                        (values (- max-lines-to-draw (- line-count selected-index))
+                            (drop normalized-lines (- line-count max-lines-to-draw))))
                     (values selected-index normalized-lines))))
 
         (define/override (draw row column terminal-height)

@@ -53,8 +53,9 @@ SOFTWARE.
                 (let ([completion-candidate (send pretty-printer complete-if-possible current-position)])
                     (match completion-candidate
                         [(some (list candidates start-index end-index))
-                            (let ([lines (map (lambda (l) (list->string l)) candidates)])
-                                ;(printf "~n~n~nlines:~a ~a~n~n" (length lines) lines)
+                            (let* ([lines (map (lambda (l) (list->string l)) candidates)]
+                                [lines (list "line 0" "line 1" "line 2" "line 3" "line 4" "line 5" "line 6" "line 7" "line 8")])
+                                (printf "~n~n~n~n~n~nlines:~a ~a~n~n" (length lines) lines)
                                 (set! dropdown (new selectable-dropdown%
                                     [lines lines]))
                                 (send screen add-widget dropdown))]
