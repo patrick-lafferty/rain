@@ -28,16 +28,6 @@
                 (set-highlight 27)
                 (set-highlight)))
 
-        #|(define (get-lines-to-draw)
-            (let ([line-count number-of-lines])
-                (if (> line-count max-lines-to-draw)
-                    (if (> (- line-count selected-index) max-lines-to-draw)
-                        (values 0
-                            (take (drop normalized-lines (- line-count selected-index max-lines-to-draw)) max-lines-to-draw))
-                        (values (- max-lines-to-draw (- line-count selected-index) ) (take normalized-lines max-lines-to-draw)))
-                    (values selected-index normalized-lines))))
-                    |#
-
         (define (get-lines-to-draw)
             (let ([line-count number-of-lines])
                 (if (> line-count max-lines-to-draw)
@@ -55,7 +45,8 @@
                     (add1 row)
 
                     ;have to draw above the line
-                    (- row lines-to-draw))])
+                    (- row lines-to-draw))]
+                [progress (round (* max-lines-to-draw (/ selected-index number-of-lines)))])
                 (move-cursor row column)
                 (set-highlight)
 
@@ -66,6 +57,15 @@
                             (set-highlight 27)
                             (set-highlight))
                         (display line)
+
+                        (if (= offset progress)
+                            (begin 
+                                (set-highlight 254)
+                                (display " "))
+                            (begin
+                                (set-highlight 244)
+                                (display " ")))  
+
                         (move-cursor (+ row offset 1) column)))
 
                 (clear-highlight)
