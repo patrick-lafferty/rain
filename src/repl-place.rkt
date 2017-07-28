@@ -130,7 +130,7 @@ SOFTWARE.
                             (set! up-counter (+ up-counter 1)))]
                     [_ (void)]))
                     
-            #t]
+            #f]
         ['down 
             #|(when (> up-counter -1)
                 (set! up-counter (- up-counter 1)))
@@ -143,7 +143,7 @@ SOFTWARE.
                         (when (< up-counter (send history get-length))
                             (set! up-counter (+ up-counter 1)))]
                     [_ (void)])) 
-            #t]
+            #f]
         ['right 
             (send commandline move-right)
             (place-channel-put channel (list 'update-cursor (send commandline get-position)))

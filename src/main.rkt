@@ -19,9 +19,10 @@ SOFTWARE.
 |#
 #lang racket/base
 
-(require racket/match)
-(require racket/class)
-(require racket/list)
+(require racket/match
+    racket/class
+    racket/list
+    racket/string)
 
 ;Basic shell that uses Racket as its scripting language
 
@@ -38,9 +39,31 @@ SOFTWARE.
 
 (define showing-dropdown? #f)
 
-(define (input-loop channel current-line show-prompt? current-position current-row)
-    (send pretty-printer print-line current-line show-prompt? current-position current-row)
+(define (update-dropdown current-position)
+    (send screen remove-widget dropdown)
+    (let ([completion-candidate (send pretty-printer complete-if-possible current-position)])
+        (match completion-candidate
+            [(some (list candidates start-index end-index))
+                (let* ([lines (map (lambda (l) (list->string l)) candidates)]
+                    ;[lines (list "line 0" "line 1" "line 2" "line 3" "line 4" "line 5" "line 6" "line 7" "line 8")])
+                )
+                    ;(printf "~n~n~n~n~n~nlines:~a ~a~n~n" (length lines) lines)
+                    (set! dropdown (new selectable-dropdown%
+                        [lines lines]))
+                    (send screen add-widget dropdown))]
+            
+            [_ (void)])))
 
+
+(define (draw-line line show-prompt? current-position current-row)
+    (let ([replacement-completion
+        (if showing-dropdown?
+            (string->list (send dropdown get-selected-item))
+            '())])
+        (send pretty-printer print-line line show-prompt? current-position current-row replacement-completion)))
+
+(define (input-loop channel current-line show-prompt? current-position current-row)
+    (draw-line current-line show-prompt? current-position current-row)
     ;(set-current-row! current-row)
     ;(set-current-column! current-position)
     
@@ -49,18 +72,7 @@ SOFTWARE.
     (let ([line (place-channel-get channel)])
         (match line
             ['f1
-                (send screen remove-widget dropdown)
-                (let ([completion-candidate (send pretty-printer complete-if-possible current-position)])
-                    (match completion-candidate
-                        [(some (list candidates start-index end-index))
-                            (let* ([lines (map (lambda (l) (list->string l)) candidates)]
-                                [lines (list "line 0" "line 1" "line 2" "line 3" "line 4" "line 5" "line 6" "line 7" "line 8")])
-                                (printf "~n~n~n~n~n~nlines:~a ~a~n~n" (length lines) lines)
-                                (set! dropdown (new selectable-dropdown%
-                                    [lines lines]))
-                                (send screen add-widget dropdown))]
-                        
-                        [_ (void)])) 
+                (update-dropdown current-position)
                 (set! showing-dropdown? #t)
             ]
             ['up 
@@ -76,6 +88,7 @@ SOFTWARE.
                     (begin 
                         (send dropdown select-down)
                         (send screen add-widget dropdown)
+                        
                         (place-channel-put channel 'nope))
                     (place-channel-put channel 'history))
             ]
@@ -84,7 +97,12 @@ SOFTWARE.
                 (let ([completion-candidate (send pretty-printer complete-if-possible current-position)])
                     (match completion-candidate
                         [(some (list x start-index end-index)) 
-                            (place-channel-put channel (list 'replace (first x) start-index end-index))]
+                            (let ([replacement 
+                                (if showing-dropdown? 
+                                    (string->list (string-trim (send dropdown get-selected-item)))
+                                    (first x))])
+
+                                (place-channel-put channel (list 'replace replacement start-index end-index)))]
                         [_ (place-channel-put channel 'continue)]))
                 (input-loop channel current-line show-prompt? current-position current-row)]
             ['clear 
@@ -142,8 +160,12 @@ SOFTWARE.
             [(list 'update show-prompt? line)
                 (printf "\e[6n")
                 (flush-output)
-                (send pretty-printer print-line line show-prompt? current-position current-row)
+               
+                (draw-line line show-prompt? current-position current-row)
                 (send pretty-printer highlight-matching-bracket current-position)
+
+                (when showing-dropdown? (update-dropdown current-position))
+
                 (input-loop channel line show-prompt? current-position current-row)]
             [(list 'update-cursor position)
                 (printf "\e[~aG" (+ 3 position))

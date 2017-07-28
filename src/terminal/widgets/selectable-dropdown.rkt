@@ -23,6 +23,8 @@
         (define/public (select-down)
             (set! selected-index (min (sub1 number-of-lines) (add1 selected-index))))
 
+        (define/public (get-selected-item) (list-ref normalized-lines selected-index))
+
         (define (before-line index)
             (if (= index selected-index)
                 (set-highlight 27)

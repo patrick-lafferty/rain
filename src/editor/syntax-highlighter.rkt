@@ -98,7 +98,7 @@ SOFTWARE.
                     [_ (none)])))
         (none)))
 
-(define (expand lexed current-highlighted-pair column)
+(define (expand lexed current-highlighted-pair column [replacement-completion '()])
     (reverse 
         (for/fold ([acc '()]) ([i lexed])
             (match i
@@ -111,7 +111,9 @@ SOFTWARE.
                     (let ([completion-candidate (complete column start end characters context)])
                         (match completion-candidate
                             [(some completion)
-                                (let ([acc (foldl cons acc (set-colour (first completion) 243))])
+                                (let* (
+                                    [completion (if (null? replacement-completion) (first completion) replacement-completion)]
+                                    [acc (foldl cons acc (set-colour completion 243))])
                                     (for/fold ([acc acc]) ([j characters])
                                         (cons j acc)))]
                             [(none)
@@ -136,15 +138,15 @@ SOFTWARE.
         (define highlighted (make-empty-highlighted-pair))
         (define current-row -1)
 
-        (define (do-print acc indent column show-prompt?)
-                (let* ([expanded (expand acc highlighted column)]
+        (define (do-print acc indent column show-prompt? [replacement-completion '()])
+                (let* ([expanded (expand acc highlighted column replacement-completion)]
                         [flattened (flatten expanded)]
                         [string (list->string (reverse flattened))]
                         [column (max column 0)]
                         [indented (string-append (make-string (max 0 (- indent column)) #\space) string)])
                     (write-line indented indent show-prompt?)))
 
-        (define/public (print-line characters show-promptt? column row)
+        (define/public (print-line characters show-promptt? column row [replacement-completion '()])
             (when show-prompt? (set! current-row row))
 
             (let-values ([(acc line lines)
@@ -155,7 +157,7 @@ SOFTWARE.
                         (make-empty-saved-line (get-next-line-number current-accumulated-lines))
                         current-accumulated-lines
                         highlighted)])
-                (do-print acc (+ (if (> indent 0) 2 0) indent column) column show-prompt?)
+                (do-print acc (+ (if (> indent 0) 2 0) indent column) column show-prompt? replacement-completion)
                 (let ([line 
                     (struct-copy saved-line line
                         [lexed acc]
@@ -284,6 +286,7 @@ SOFTWARE.
                                     [_ (none)])))
                         (none)))
                 (none)))
+
 
         #|(define/public (expand column)
             (unless (highlight-matching-bracket column)
