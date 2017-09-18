@@ -26,7 +26,7 @@ SOFTWARE.
 
 Its sometimes useful to get notified when certain files change so you can
 perform an action. As an example, I wanted to automatically rebuild the Scribble documentation
-for Lush whenever I changed the docs. To do this, you can use the watch procedure. 
+for Rain whenever I changed the docs. To do this, you can use the watch procedure. 
 
 @defproc[(watch [path string?] [func proc?]) void]{
     Runs @racket[func] whenever @racket[path] is created/modified/deleted
@@ -41,8 +41,8 @@ for Lush whenever I changed the docs. To do this, you can use the watch procedur
 
 Example:
 
-@racketblock[(watch "/home/pat/projects/lush/docs" 
-                (lambda (x) {scribble --htmls --dest docs docs/lush.scrbl}))]
+@racketblock[(watch "/home/pat/projects/rain/docs" 
+                (lambda (x) {scribble --htmls --dest docs docs/rain.scrbl}))]
 
 To stop watching use the stop-watching proc:
 
@@ -52,4 +52,4 @@ To stop watching use the stop-watching proc:
 
 To stop the watch for the above example:
 
-@racket[(stop-watching "/home/pat/projects/lush/docs")]
+@racket[(stop-watching "/home/pat/projects/rain/docs")]

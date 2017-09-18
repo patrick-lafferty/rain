@@ -21,13 +21,13 @@ SOFTWARE.
 @(require scribble/core
           scribble/manual)
 
-@margin-note{This page was last updated on July 10/2017}
-@title[#:tag "top" #:version "" ]{LuSH - The Lu Shell}
+@margin-note{This page was last updated on September 18/2017}
+@title[#:tag "top" #:version "" ]{Rain - The Racket Interactive Shell}
 
 @author["Patrick Lafferty"]
 
 
-Lush is a command-line shell that uses Racket as its scripting language.
+Rain is a command-line shell that uses Racket as its scripting language.
 It currently features:
 
 @itemlist[@item{a basic command language that supports job control, piping, and standard stream redirects}
