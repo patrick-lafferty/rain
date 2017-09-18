@@ -62,6 +62,10 @@ SOFTWARE.
             '())])
         (send pretty-printer print-line line show-prompt? current-position current-row replacement-completion)))
 
+(define (hide-autocomplete-dropdown)
+    (send screen remove-widget dropdown)
+    (set! showing-dropdown? #f))
+
 (define (input-loop channel current-line show-prompt? current-position current-row)
     (draw-line current-line show-prompt? current-position current-row)
     ;(set-current-row! current-row)
@@ -72,8 +76,11 @@ SOFTWARE.
     (let ([line (place-channel-get channel)])
         (match line
             ['f1
-                (update-dropdown current-position)
-                (set! showing-dropdown? #t)
+                (if showing-dropdown?
+                    (hide-autocomplete-dropdown) 
+                    (begin
+                        (update-dropdown current-position)
+                        (set! showing-dropdown? #t)))
             ]
             ['up 
                 (if showing-dropdown?
@@ -104,6 +111,9 @@ SOFTWARE.
 
                                 (place-channel-put channel (list 'replace replacement start-index end-index)))]
                         [_ (place-channel-put channel 'continue)]))
+
+                (hide-autocomplete-dropdown)
+
                 (input-loop channel current-line show-prompt? current-position current-row)]
             ['clear 
                 (printf "\e[6n")
@@ -111,8 +121,7 @@ SOFTWARE.
                 (send pretty-printer reset)
                 (input-loop channel '() #t 0 current-row)]
             ['newline 
-                (send screen remove-widget dropdown)
-                (set! showing-dropdown? #f)
+                (hide-autocomplete-dropdown) 
 
                 (printf "\e[6n")
                 (flush-output)
@@ -120,8 +129,7 @@ SOFTWARE.
                 (send pretty-printer new-line)
                 (input-loop channel '() #t 0 (add1 current-row))]
             [(list 'finished line)
-                (send screen remove-widget dropdown)
-                (set! showing-dropdown? #f)
+                (hide-autocomplete-dropdown) 
                 (displayln "")
                 (printf "\e[6n")
                 (flush-output)
