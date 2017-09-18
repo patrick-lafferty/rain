@@ -9,7 +9,7 @@ Rain is an interactive [Racket](http://racket-lang.org/) shell. The above screen
   * special forms
   * user definitons
   * definitions from racket/{base/class/list}
-* a dropdown list that shows possible autocompletions
+* a dropdown list that shows possible autocompletions (toggle with F1)
 * auto-indenting code
 * a minimal Racket interpreter
 

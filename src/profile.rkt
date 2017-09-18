@@ -23,7 +23,7 @@ SOFTWARE.
 
 (provide (all-defined-out))
 
-(define user-profile (expand-user-path "~/.lush_profile"))
+(define user-profile (expand-user-path "~/.rain_profile"))
 
 (define (setup-profile shell-namespace)
 
