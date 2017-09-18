@@ -19,21 +19,23 @@ SOFTWARE.
 |#
 #lang racket/base
 
-(require racket/file)
-
 (provide (all-defined-out))
 
-(define user-profile (expand-user-path "~/.rain_profile"))
+(define (enter-cursor-address-mode)
+    (printf "\e[?1049h"))
 
-(define (setup-profile shell-namespace)
+(define (exit-cursor-address-mode)
+    (printf "\e[?1049l"))
 
-    (unless (file-exists? user-profile)
-        (let ([profile (open-output-file user-profile)])
-            (close-output-port profile))))
+(define (set-cursor-row row)
+    (printf "\e[~a;H" row))
 
+(define (move-cursor row column)
+    (printf "\e[~a;~aH" row column))
 
-(define (print-prompt)
-    (display "λ "))
+(define (set-highlight [colour 183])
+    (printf "\e[38;5;0m")
+    (printf "\e[48;5;~am" colour))
 
-(define (get-prompt-string)
-    "λ ")
+(define (clear-highlight)
+    (printf "\e[0m"))

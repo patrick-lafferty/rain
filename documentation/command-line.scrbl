@@ -19,8 +19,15 @@ SOFTWARE.
 |#
 #lang scribble/manual
 
-@title[#:tag "command-line"]{Command Line}
+@title[#:version ""]{Command Line}
 
-Command Line
+This chapter introduces some of the features of the command line.
 
-@section{First}
+@section{Autocompletion}
+
+Rain can automatically complete identifiers you are typing. It first determines the context
+of the identifier to determine what appropriate completions would be (ie at the beginning of
+a function "def" would probably become "define"). It then collects a list of completions, picks
+the closest matching one, and adds the remaining characters in a light grey colour. To accept
+the completion simply press tab. If you want to see other completions press F1 and a listbox
+will popup which you can scroll with the up and down arrow keys, and select with enter.

@@ -114,18 +114,36 @@ SOFTWARE.
         [(cursor-position row column)
             (place-channel-put channel (list 'cursor-position row column))
             #f]
-        ['f1 (display "f1") #f]
+        ['f1 (display "f1") (place-channel-put channel 'f1) #f]
         ['del (send commandline delete) #t] 
         ['up 
-            (show-history up-counter)
+            #|(show-history up-counter)
             (when (< up-counter (send history get-length))
                 (set! up-counter (+ up-counter 1)))
-            #t]
+            #t]|#
+            (place-channel-put channel 'up)
+            (let ([response (place-channel-get channel)])
+                (match response
+                    ['history 
+                        (show-history up-counter)
+                        (when (< up-counter (send history get-length))
+                            (set! up-counter (+ up-counter 1)))]
+                    [_ (void)]))
+                    
+            #f]
         ['down 
-            (when (> up-counter -1)
+            #|(when (> up-counter -1)
                 (set! up-counter (- up-counter 1)))
-            (show-history up-counter)
-            #t]
+            (show-history up-counter)|#
+            (place-channel-put channel 'down)
+            (let ([response (place-channel-get channel)])
+                (match response
+                    ['history 
+                        (show-history up-counter)
+                        (when (< up-counter (send history get-length))
+                            (set! up-counter (+ up-counter 1)))]
+                    [_ (void)])) 
+            #f]
         ['right 
             (send commandline move-right)
             (place-channel-put channel (list 'update-cursor (send commandline get-position)))

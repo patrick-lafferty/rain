@@ -30,18 +30,19 @@ SOFTWARE.
  set-definition-handler!
 )
 
-(require racket/class)
-(require racket/list)
-(require racket/match)
-(require "filesystem.rkt")
-(require "terminal.rkt")
-(require "termios.rkt")
-(require "profile.rkt")    
-(require "builtins.rkt")
-(require "jobs.rkt")
-(require "debug_printf.rkt")
-(require "interpreter/interpreter.rkt")
-(require "interpreter/env.rkt")
+(require racket/class
+    racket/list
+    racket/match
+    "filesystem.rkt"
+    "terminal.rkt"
+    "termios.rkt"
+    "profile.rkt"    
+    "builtins.rkt"
+    "jobs.rkt"
+    "debug_printf.rkt"
+    "interpreter/interpreter.rkt"
+    "interpreter/env.rkt"
+    "terminal/escape-sequences.rkt")
 
 ;libc imports
 (require ffi/unsafe)
@@ -144,16 +145,19 @@ and if not checks to see if its a value we can print
 |#
 (define (handle-symbol s)
     (match s
-        ['exit 
-            (send master-termios quit 0)
-            (exit)]
+        ['exit (shutdown-lush)]
         ['fg (send launcher fg)]
         [ _ (let ([value (lookup s (list repl-env profile-env))])
-                (if value
+                (void))]
+                #|(if value
                     (displayln value)
                     (printf "~a is undefined~n" s)))]
+                    |#
     ))
 
-
+(define (shutdown-lush)
+    ;(exit-cursor-address-mode)
+    (send master-termios quit 0)
+    (exit))
 
 (source)

@@ -22,7 +22,7 @@ SOFTWARE.
 @title[#:tag "shell" #:version ""]{Shell}
 
 The goal for the shell command line was to try to have familiar syntax as to what you'd 
-use in bash, while making a few improvements. To do this Lush changes the current readtable
+use in bash, while making a few improvements. To do this Rain changes the current readtable
 so that whenever a { is detected it parses the source differently until the closing }. 
 In Racket (, [, and { are all equivalent and since in my experience {}'s aren't used much
 I decided to repurpose them to delimit shell lang. Any code in shell-lang gets converted to valid
@@ -86,7 +86,7 @@ Normally when you run a program in the terminal stdin comes from the keyboard, a
 stdout and stderr get displayed on the screen. With redirection you can change that,
 for instance you can redirect stdin to read from a file, or stdout to output to a file.
 The second example is useful when you want to save the resulting output of a program
-to read again later. To redirectin Lush:
+to read again later. To redirect in Rain:
 
 @itemlist[@item{@exec{ < in-file } redirects stdin}
     @item{@exec{ > out-file } redirects stdout}

@@ -21,44 +21,44 @@ SOFTWARE.
 
 @title[#:version ""]{Getting started}
 
-This chapter shows you how to get Lush and introduces some basic features. For more in-depth resources
+This chapter shows you how to get Rain and introduces some basic features. For more in-depth resources
 read on to the next chapters.
 
 @section{Installation}
 
 @(require "../src/version.rkt")
 
-Lush requires a Unix environment. It currently is only tested on the Windows Subsystem for Linux, but should work for any *nix.
+Rain requires a Unix environment. It currently is only tested on the Windows Subsystem for Linux, but should work for any *nix.
 If you want to use it with WSL, make sure you have the creators update as it substantially improved WSL.
 
-Open bash and get the latest release from @(hyperlink "https://github.com/patrick-lafferty/lush/releases" "github"):
+Open bash and get the latest release from @(hyperlink "https://github.com/patrick-lafferty/rain/releases" "github"):
 
-@exec{wget https://github.com/patrick-lafferty/lush/releases/download/@(version)/lush.tar.xz}
+@exec{wget https://github.com/patrick-lafferty/rain/releases/download/@(version)/rain.tar.xz}
 
-Then extract lush some place you want. To put lush in your home dir:
+Then extract Rain some place you want. To put Rain in your home dir:
 
-@exec{tar xf lush.tar.xz}
+@exec{tar xf rain.tar.xz}
 
-Now you can run Lush:
+Now you can run Rain:
 
-@exec{~/lush/bin/lush}
+@exec{~/rain/bin/rain}
 
 @section{Command line}
 
-After starting Lush you are in the command line. By default anything you enter will be interpreted as Racket code.
-As soon as Lush can parse something (ie once the brackets are balanced) it will interpret the code. Try it out:
+After starting Rain you are in the command line. By default anything you enter will be interpreted as Racket code.
+As soon as Rain can parse something (ie once the brackets are balanced) it will interpret the code. Try it out:
 
 @racketblock[(displayln "hello, world")]
 
-Lush supports multi-line editing. For example to write a multi-line function, simply omit the closing 
-bracket and press enter. You can keep entering new lines and once Lush detects the last closing bracket, it joins
+Rain supports multi-line editing. For example to write a multi-line function, simply omit the closing 
+bracket and press enter. You can keep entering new lines and once Rain detects the last closing bracket, it joins
 all the lines you entered and interprets it.
 
 @racketblock[
     (define (greet name)
         (printf "hello, ~a" name))]
 
-Lush won't create the greet function until the last ). If you want to cancel input simply press Ctrl+D.
+Rain won't create the greet function until the last ). If you want to cancel input simply press Ctrl+D.
 
 @section[#:tag "getting-started-shell"]{Shell}
 
@@ -66,7 +66,7 @@ You can run commands similar to a Unix shell like Bash. To do so, wrap your comm
 
 @nested[#:style 'code-inset]{{ls}}
 
-Lush supports redirects:
+Rain supports redirects:
 
 @nested[#:style 'code-inset]{{ls > output.txt}}
 

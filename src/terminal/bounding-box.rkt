@@ -19,21 +19,16 @@ SOFTWARE.
 |#
 #lang racket/base
 
-(require racket/file)
-
 (provide (all-defined-out))
 
-(define user-profile (expand-user-path "~/.rain_profile"))
+(struct point (row column) #:transparent)
 
-(define (setup-profile shell-namespace)
+(struct bounding-box
+    (start ;point
+    end)
+    #:transparent) ;point
 
-    (unless (file-exists? user-profile)
-        (let ([profile (open-output-file user-profile)])
-            (close-output-port profile))))
-
-
-(define (print-prompt)
-    (display "λ "))
-
-(define (get-prompt-string)
-    "λ ")
+(define (make-empty-bounding-box)
+    (bounding-box
+        (point 0 0)
+        (point 0 0)))
